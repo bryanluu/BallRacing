@@ -42,8 +42,9 @@ class BallScene(SceneBase):
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
 
-        self.ball = utilities.load_image('ball.png')
-        self.ballrect = self.ball.get_rect()
+        # self.ball = utilities.load_image('ball.png')
+        # self.ballrect = self.ball.get_rect()
+        self.ballrect = pygame.Rect(0, 0, 20, 20)
         self.ballrect.left, self.ballrect.top = 0, 0
 
     def ProcessInput(self, events, pressed_keys):
@@ -95,7 +96,7 @@ class BallScene(SceneBase):
     def Render(self):
         # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill((255, 255, 255))
-        self.screen.blit(self.ball, self.ballrect)
+        pygame.draw.circle(self.screen, colors.RED, self.ballrect.center, 10)
         pygame.display.flip()
 
 

@@ -34,13 +34,14 @@ class SceneBase:
 class CopterScene(SceneBase):
     GAP_FRACTION = 0.7
     GAP_CLEARANCE = 0.05
+    FLUCTUATION = 3
 
     def __init__(self):
         SceneBase.__init__(self)
         self.v = geo.Vector2D.zero()
         self.a = geo.Vector2D(0, 1)
         self.fly = False
-        # self.walls = pygame.sprite.Group()
+        self.rng = np.random.default_rng()
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -52,15 +53,22 @@ class CopterScene(SceneBase):
 
         # generate walls
         self.gap_height = self.GAP_FRACTION * screenHeight
-        self.gap_pos = np.random.random_sample() \
+        self.gap_pos = self.rng.random() \
             * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
             + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
 
         self.walls = pygame.sprite.Group()
-        top = Wall(0, round(self.gap_pos - self.gap_height/2))
-        bottom = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
-        self.walls.add(top)
-        self.walls.add(bottom)
+
+        for i in range(int(np.ceil(screenWidth/Wall.WIDTH))+2):
+            self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
+            self.gap_pos = min(max(self.gap_pos, self.gap_height/2 + self.GAP_CLEARANCE * screenHeight),
+                               (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height/2)
+            top = Wall(0, round(self.gap_pos - self.gap_height/2))
+            bottom = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+            top.rect.left = i*Wall.WIDTH
+            bottom.rect.left = i*Wall.WIDTH
+            self.walls.add(top)
+            self.walls.add(bottom)
 
     def ProcessInput(self, events, pressed_keys):
         pass
@@ -100,6 +108,18 @@ class CopterScene(SceneBase):
         for wall in self.walls:
             if wall.rect.right < 0:
                 wall.kill()
+
+                # generate new wall
+                if wall.rect.top == 0:
+                    self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
+                    self.gap_pos = min(max(self.gap_pos, self.gap_height/2 + self.GAP_CLEARANCE * screenHeight),
+                                       (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height/2)
+                    new = Wall(0, round(self.gap_pos - self.gap_height/2))
+                else:
+                    new = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+                self.walls.add(new)
+
+        print(len(self.walls))
 
         self.walls.update()
 

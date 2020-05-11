@@ -4,6 +4,7 @@ import geometry as geo
 import colors
 import numpy as np
 from copter import *
+import time
 
 class SceneBase:
     def __init__(self):
@@ -32,9 +33,13 @@ class SceneBase:
 
 
 class CopterScene(SceneBase):
-    GAP_FRACTION = 0.7
-    GAP_CLEARANCE = 0.05
-    FLUCTUATION = 3
+    GAP_FRACTION = 0.7 # the starting fraction of gap space
+    GAP_CLEARANCE = 0.05 # how much clearance the gap has between screen borders
+    FLUCTUATION = 3 # how much the gap position fluctuates
+    NARROWING_INTERVAL = 5 # how long before the gap narrows
+    FLUCTUATION_INTERVAL = 5 # how long before gap increases fluctuation
+    MAX_FLUCTUATION = 15 # maximum amount of fluctuation
+
 
     def __init__(self):
         SceneBase.__init__(self)
@@ -42,6 +47,9 @@ class CopterScene(SceneBase):
         self.a = geo.Vector2D(0, 1)
         self.fly = False
         self.rng = np.random.default_rng()
+        self.starttime = time.time()
+        self.lastnarrow = self.starttime
+        self.lastfluct = self.starttime
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -69,6 +77,8 @@ class CopterScene(SceneBase):
             bottom.rect.left = i*Wall.WIDTH
             self.walls.add(top)
             self.walls.add(bottom)
+
+        self.scoreText = pygame.font.Font('freesansbold.ttf', 20)
 
     def ProcessInput(self, events, pressed_keys):
         pass
@@ -111,6 +121,12 @@ class CopterScene(SceneBase):
 
                 # generate new wall
                 if wall.rect.top == 0:
+                    if (time.time() - self.lastnarrow) >= self.NARROWING_INTERVAL:
+                        self.gap_height = max(0.95 * self.gap_height, 3 * self.copter.rect.height)
+                        self.lastnarrow = time.time()
+                    if (time.time() - self.lastfluct) >= self.FLUCTUATION_INTERVAL:
+                        self.FLUCTUATION = min(self.FLUCTUATION + 1, self.MAX_FLUCTUATION)
+                        self.lastfluct = time.time()
                     self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
                     self.gap_pos = min(max(self.gap_pos, self.gap_height/2 + self.GAP_CLEARANCE * screenHeight),
                                        (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height/2)
@@ -119,15 +135,19 @@ class CopterScene(SceneBase):
                     new = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
                 self.walls.add(new)
 
-        print(len(self.walls))
-
         self.walls.update()
 
     def Render(self):
-        # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill((255, 255, 255))
         self.copter.draw(self.screen)
         self.walls.draw(self.screen)
+
+        scoreSurf = self.scoreText.render("Time: {0:.2f}".format((time.time() - self.starttime)), True, (0, 0, 0))
+        scoreRect = scoreSurf.get_rect()
+        scoreRect.left = 50
+        scoreRect.top = 50
+        self.screen.blit(scoreSurf, scoreRect)
+
 
         pygame.display.flip()
 

@@ -48,10 +48,7 @@ class CopterScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        # self.ball = utilities.load_image('ball.png')
-        # self.ballrect = self.ball.get_rect()
-        self.ballrect = pygame.Rect(0, 0, 20, 20)
-        self.ballrect.center = (screenWidth / 4, screenHeight / 2)
+        self.copter = Copter([screenWidth / 4, screenHeight / 2])
 
         # generate walls
         self.gap_height = self.GAP_FRACTION * screenHeight
@@ -85,15 +82,20 @@ class CopterScene(SceneBase):
             self.a = geo.Vector2D(0, 1)
 
         self.v += self.a
-        self.ballrect.move_ip(*self.v)
+        self.copter.rect.move_ip(*self.v)
 
         # if ceiling is hit
-        if self.ballrect.top < 0:
+        if self.copter.rect.top < 0:
             self.EndGame()
 
         # if floor is hit
-        if self.ballrect.bottom > screenHeight:
+        if self.copter.rect.bottom > screenHeight:
             self.EndGame()
+
+        for hit_list in pygame.sprite.spritecollide(self.copter, self.walls,
+                                                    False, collided=pygame.sprite.collide_rect):
+            self.EndGame()
+            break
 
         for wall in self.walls:
             if wall.rect.right < 0:
@@ -104,7 +106,7 @@ class CopterScene(SceneBase):
     def Render(self):
         # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill((255, 255, 255))
-        pygame.draw.circle(self.screen, colors.RED, self.ballrect.center, 10)
+        self.copter.draw(self.screen)
         self.walls.draw(self.screen)
 
         pygame.display.flip()

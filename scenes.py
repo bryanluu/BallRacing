@@ -1,9 +1,9 @@
 import pygame
 import utilities
 import geometry as geo
-import math, random
-import time
 import colors
+import numpy as np
+from copter import *
 
 class SceneBase:
     def __init__(self):
@@ -32,11 +32,15 @@ class SceneBase:
 
 
 class CopterScene(SceneBase):
+    GAP_FRACTION = 0.7
+    GAP_CLEARANCE = 0.05
+
     def __init__(self):
         SceneBase.__init__(self)
         self.v = geo.Vector2D.zero()
         self.a = geo.Vector2D(0, 1)
         self.fly = False
+        # self.walls = pygame.sprite.Group()
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -47,13 +51,24 @@ class CopterScene(SceneBase):
         # self.ball = utilities.load_image('ball.png')
         # self.ballrect = self.ball.get_rect()
         self.ballrect = pygame.Rect(0, 0, 20, 20)
-        self.ballrect.center = (screenWidth/4, screenHeight/2)
+        self.ballrect.center = (screenWidth / 4, screenHeight / 2)
+
+        # generate walls
+        self.gap_height = self.GAP_FRACTION * screenHeight
+        self.gap_pos = np.random.random_sample() \
+            * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
+            + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
+
+        self.walls = pygame.sprite.Group()
+        top = Wall(0, round(self.gap_pos - self.gap_height/2))
+        bottom = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+        self.walls.add(top)
+        self.walls.add(bottom)
 
     def ProcessInput(self, events, pressed_keys):
         pass
 
     def Update(self):
-        mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()[0]
         spacebar = pygame.key.get_pressed()[pygame.K_SPACE]
 
@@ -80,10 +95,18 @@ class CopterScene(SceneBase):
         if self.ballrect.bottom > screenHeight:
             self.EndGame()
 
+        for wall in self.walls:
+            if wall.rect.right < 0:
+                wall.kill()
+
+        self.walls.update()
+
     def Render(self):
         # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill((255, 255, 255))
         pygame.draw.circle(self.screen, colors.RED, self.ballrect.center, 10)
+        self.walls.draw(self.screen)
+
         pygame.display.flip()
 
     def EndGame(self):

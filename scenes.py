@@ -50,6 +50,7 @@ class CopterScene(SceneBase):
         self.starttime = time.time()
         self.lastnarrow = self.starttime
         self.lastfluct = self.starttime
+        self.highscore = self.loadScore('score.save')
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -79,6 +80,7 @@ class CopterScene(SceneBase):
             self.walls.add(bottom)
 
         self.scoreText = pygame.font.Font('freesansbold.ttf', 20)
+        self.highscoreText = pygame.font.Font('freesansbold.ttf', 12)
 
     def ProcessInput(self, events, pressed_keys):
         pass
@@ -144,15 +146,38 @@ class CopterScene(SceneBase):
 
         scoreSurf = self.scoreText.render("Time: {0:.2f}".format((time.time() - self.starttime)), True, (0, 0, 0))
         scoreRect = scoreSurf.get_rect()
-        scoreRect.left = 50
-        scoreRect.top = 50
+        scoreRect.left, scoreRect.top = 50, 50
+        self.screen.blit(scoreSurf, scoreRect)
+
+        scoreSurf = self.highscoreText.render("High-score: {0:.2f}".format(self.highscore), True, (0, 0, 0))
+        scoreRect = scoreSurf.get_rect()
+        scoreRect.left, scoreRect.top = 50, 75
         self.screen.blit(scoreSurf, scoreRect)
 
 
         pygame.display.flip()
 
     def EndGame(self):
+        dt = time.time() - self.starttime
+        if dt > self.highscore:
+                self.saveScore('score.save')
+                self.highscore = dt
         self.SwitchToScene(Start())
+
+    def saveScore(self, filename):
+        with open(filename, 'w') as f:
+            f.write("High-score,{0:.2f}".format(time.time()-self.starttime))
+
+    def loadScore(self, filename):
+        try:
+            with open(filename, 'r') as f:
+                scoreline = f.readline()
+                score = scoreline.split(',')[1]
+        except:
+            score = 0
+            print("No save data found.")
+
+        return float(score)
 
 
 class Start(SceneBase):

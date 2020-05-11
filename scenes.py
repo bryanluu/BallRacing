@@ -31,73 +31,63 @@ class SceneBase:
         self.SwitchToScene(None)
 
 
-class BallScene(SceneBase):
+class CopterScene(SceneBase):
     def __init__(self):
         SceneBase.__init__(self)
         self.v = geo.Vector2D.zero()
         self.a = geo.Vector2D(0, 1)
-        self.elasticity = 0.8
-        self.friction = 0.1
+        self.fly = False
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
 
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
         # self.ball = utilities.load_image('ball.png')
         # self.ballrect = self.ball.get_rect()
         self.ballrect = pygame.Rect(0, 0, 20, 20)
-        self.ballrect.left, self.ballrect.top = 0, 0
+        self.ballrect.center = (screenWidth/4, screenHeight/2)
 
     def ProcessInput(self, events, pressed_keys):
         pass
 
     def Update(self):
         mouse = pygame.mouse.get_pos()
-        click = pygame.mouse.get_pressed()
+        click = pygame.mouse.get_pressed()[0]
+        spacebar = pygame.key.get_pressed()[pygame.K_SPACE]
+
+        # check if spacebar/mouse
+        self.fly = spacebar or click
 
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        # follow mouse drag
-        if click[0]:
-            currentPos = geo.Vector2D(*mouse)
-            self.v = currentPos - self.lastPos
-            self.lastPos = currentPos
-            self.ballrect.center = mouse
-            if self.ballrect.left < 0:
-                self.ballrect.left = 0
-            if self.ballrect.right > screenWidth:
-                self.ballrect.right = screenWidth
-            if self.ballrect.top < 0:
-                self.ballrect.top = 0
-            if self.ballrect.bottom > screenHeight:
-                self.ballrect.bottom = screenHeight
+        # fly logic
+        if self.fly:
+            self.a = geo.Vector2D(0, -1)
         else:
-            self.lastPos = geo.Vector2D(*mouse)
-            self.v += self.a
-            self.ballrect.move_ip(*self.v)
-            if self.ballrect.left < 0:
-                self.v.x = -self.v.x * self.elasticity
-                self.ballrect.left = 0
-            if self.ballrect.right > screenWidth:
-                self.v.x = -self.v.x * self.elasticity
-                self.ballrect.right = screenWidth
-            if self.ballrect.top < 0:
-                self.v.y = -self.v.y * self.elasticity
-                self.ballrect.top = 0
-            if self.ballrect.bottom > screenHeight:
-                self.v.y = int(-self.v.y * self.elasticity)
-                if self.v.x > 0:
-                    self.v.x = int(self.v.x - self.friction)
-                elif self.v.x < 0:
-                    self.v.x = int(self.v.x + self.friction)
+            self.a = geo.Vector2D(0, 1)
 
-                self.ballrect.bottom = screenHeight
+        self.v += self.a
+        self.ballrect.move_ip(*self.v)
+
+        # if ceiling is hit
+        if self.ballrect.top < 0:
+            self.EndGame()
+
+        # if floor is hit
+        if self.ballrect.bottom > screenHeight:
+            self.EndGame()
 
     def Render(self):
         # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill((255, 255, 255))
         pygame.draw.circle(self.screen, colors.RED, self.ballrect.center, 10)
         pygame.display.flip()
+
+    def EndGame(self):
+        self.SwitchToScene(Start())
 
 
 class Start(SceneBase):
@@ -122,7 +112,7 @@ class Start(SceneBase):
 
             if i == 0:
                 def action():
-                    self.SwitchToScene(Tanks())
+                    self.SwitchToScene(CopterScene())
             else:
                 def action():
                     self.Terminate()

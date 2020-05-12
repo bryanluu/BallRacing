@@ -51,6 +51,7 @@ class CopterScene(SceneBase):
         self.lastnarrow = self.starttime
         self.lastfluct = self.starttime
         self.highscore = self.loadScore('score.save')
+        self.projectiles = pygame.sprite.Group()
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -86,11 +87,12 @@ class CopterScene(SceneBase):
         pass
 
     def Update(self):
-        click = pygame.mouse.get_pressed()[0]
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
         spacebar = pygame.key.get_pressed()[pygame.K_SPACE]
 
-        # check if spacebar/mouse
-        self.fly = spacebar or click
+        # check if spacebar
+        self.fly = spacebar
 
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
@@ -139,10 +141,22 @@ class CopterScene(SceneBase):
 
         self.walls.update()
 
+        if click[0]:
+            if self.copter.weapon == Weapon.MACHINE_GUN:
+                if time.time() - self.copter.lastShootTime > self.copter.MACHINE_GUN_RELOAD_TIME:
+                    dr = geo.Vector2D(*mouse) - geo.Vector2D(*self.copter.rect.center)
+                    self.copter.angle = (np.degrees(geo.Vector2D.angle_between(dr, geo.Vector2D(1, 0))))
+                    bullet = self.copter.shoot()
+
+                    self.projectiles.add(bullet)
+
+        self.projectiles.update()
+
     def Render(self):
         self.screen.fill((255, 255, 255))
         self.copter.draw(self.screen)
         self.walls.draw(self.screen)
+        self.projectiles.draw(self.screen)
 
         scoreSurf = self.scoreText.render("Time: {0:.2f}".format((time.time() - self.starttime)), True, (0, 0, 0))
         scoreRect = scoreSurf.get_rect()
@@ -154,8 +168,26 @@ class CopterScene(SceneBase):
         scoreRect.left, scoreRect.top = 50, 75
         self.screen.blit(scoreSurf, scoreRect)
 
+        self.drawCrossHairs()
 
         pygame.display.flip()
+
+    def drawCrossHairs(self):
+        mouse = pygame.mouse.get_pos()
+        pressed = pygame.mouse.get_pressed()
+
+        offset = 5
+        length = 10
+        if pressed[0]:
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+        else:
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
 
     def EndGame(self):
         dt = time.time() - self.starttime

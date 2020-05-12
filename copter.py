@@ -196,3 +196,45 @@ class Laser(Projectile):
     def update(self):
         pass
 
+
+class Enemy(pygame.sprite.Sprite):
+    # Constructor. Pass in the color of the block,
+    # and its x and y position
+    def __init__(self, y):
+        # Call the parent class (Sprite) constructor
+        pygame.sprite.Sprite.__init__(self)
+        self.y = y
+
+    def update(self):
+        pass
+
+
+class Bat(Enemy):
+    # Constructor. Pass in the color of the block,
+    # and its x and y position
+    def __init__(self, y, speed):
+        # Call the parent class (Sprite) constructor
+        Enemy.__init__(self, y)
+
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        self.strips = utilities.SpriteStripAnim('bat.png', (0, 128 - 32, 32, 32), (4, 1), colorkey=-1, frames=3, loop=True)
+        self.strips.iter()
+        self.image = self.strips.next()
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        # Fetch the rectangle object that has the dimensions of the image
+        # Update the position of this object by setting the values of rect.x and rect.y
+        self.rect = pygame.Rect(screenWidth, self.y, 32, 32)
+        self.x = float(self.rect.x)
+        self.y = float(self.rect.y)
+        self.speed = speed
+
+    def update(self):
+        self.x -= self.speed
+        self.y += np.random.mtrand.standard_normal()
+        self.rect.x = int(self.x)
+        self.rect.y = int(self.y)
+        self.image = self.strips.next()

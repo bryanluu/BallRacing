@@ -39,6 +39,7 @@ class CopterScene(SceneBase):
     NARROWING_INTERVAL = 5 # how long before the gap narrows
     FLUCTUATION_INTERVAL = 5 # how long before gap increases fluctuation
     MAX_FLUCTUATION = 15 # maximum amount of fluctuation
+    BAT_RESPAWN_TIME = 10 # interval between bats
 
 
     def __init__(self):
@@ -52,6 +53,10 @@ class CopterScene(SceneBase):
         self.lastfluct = self.starttime
         self.highscore = self.loadScore('score.save')
         self.projectiles = pygame.sprite.Group()
+        self.obstacles = pygame.sprite.Group()
+        self.score = 0
+        self.timeOfLastAdd = {}
+        self.timeOfLastAdd['bats'] = self.starttime
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -90,6 +95,7 @@ class CopterScene(SceneBase):
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
         spacebar = pygame.key.get_pressed()[pygame.K_SPACE]
+        self.score = time.time() - self.starttime
 
         # check if spacebar
         self.fly = spacebar
@@ -119,6 +125,11 @@ class CopterScene(SceneBase):
             self.EndGame()
             break
 
+        for hit_list in pygame.sprite.spritecollide(self.copter, self.obstacles,
+                                                    False, collided=pygame.sprite.collide_rect):
+            self.EndGame()
+            break
+
         for wall in self.walls:
             if wall.rect.right < 0:
                 wall.kill()
@@ -141,6 +152,17 @@ class CopterScene(SceneBase):
 
         self.walls.update()
 
+        # add obstacles
+        self.addObstacles()
+        self.obstacles.update()
+        for ob in self.obstacles:
+            # if obstacle flies off-screen, delete it
+            if ob.rect.left > screenWidth \
+                    or ob.rect.right < 0 \
+                    or ob.rect.top > screenHeight \
+                    or ob.rect.bottom < 0:
+                ob.kill()
+
         if click[0]:
             if self.copter.weapon == Weapon.MACHINE_GUN:
                 if time.time() - self.copter.lastShootTime > self.copter.MACHINE_GUN_RELOAD_TIME:
@@ -150,15 +172,26 @@ class CopterScene(SceneBase):
 
                     self.projectiles.add(bullet)
 
+        for p in self.projectiles:
+            # if projectile flies off-screen
+            if p.rect.left > screenWidth \
+                    or p.rect.right < 0 \
+                    or p.rect.top > screenHeight \
+                    or p.rect.bottom < 0:
+                p.kill()
+
+            self.checkProjectileHit(p)
+
         self.projectiles.update()
 
     def Render(self):
         self.screen.fill((255, 255, 255))
         self.copter.draw(self.screen)
+        self.obstacles.draw(self.screen)
         self.walls.draw(self.screen)
         self.projectiles.draw(self.screen)
 
-        scoreSurf = self.scoreText.render("Time: {0:.2f}".format((time.time() - self.starttime)), True, (0, 0, 0))
+        scoreSurf = self.scoreText.render("Time: {0:.2f}".format(self.score), True, (0, 0, 0))
         scoreRect = scoreSurf.get_rect()
         scoreRect.left, scoreRect.top = 50, 50
         self.screen.blit(scoreSurf, scoreRect)
@@ -190,10 +223,8 @@ class CopterScene(SceneBase):
             pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
 
     def EndGame(self):
-        dt = time.time() - self.starttime
-        if dt > self.highscore:
+        if self.score > self.highscore:
                 self.saveScore('score.save')
-                self.highscore = dt
         self.SwitchToScene(Start())
 
     def saveScore(self, filename):
@@ -210,6 +241,29 @@ class CopterScene(SceneBase):
             print("No save data found.")
 
         return float(score)
+
+    def checkProjectileHit(self, projectile):
+        collided_objects = pygame.sprite.spritecollide(projectile, self.walls, False, collided=pygame.sprite.collide_rect)
+        for obj in collided_objects:
+            # self.explosions.append((projectile.explode(), projectile.pos()))
+            projectile.kill()
+
+        collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, True, collided=pygame.sprite.collide_rect)
+        for obj in collided_objects:
+            # self.explosions.append((projectile.explode(), projectile.pos()))
+            projectile.kill()
+
+            if type(obj) is Bat:
+                self.starttime -= 5
+
+    def addObstacles(self):
+        if time.time() - self.timeOfLastAdd['bats'] > self.BAT_RESPAWN_TIME:
+            self.BAT_RESPAWN_TIME *= 0.95
+            roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
+            y = self.rng.random()*0.8*self.gap_height + 0.1*roof
+            bat = Bat(y, Wall.SPEED*1.2)
+            self.obstacles.add(bat)
+            self.timeOfLastAdd['bats'] = time.time()
 
 
 class Start(SceneBase):

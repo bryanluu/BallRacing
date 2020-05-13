@@ -3,8 +3,9 @@ import utilities
 import geometry as geo
 import colors
 import numpy as np
-from copter import *
 import time
+from copter import *
+from driving import *
 
 class SceneBase:
     def __init__(self):
@@ -270,7 +271,7 @@ class Start(SceneBase):
     def __init__(self):
         SceneBase.__init__(self)
 
-        self.options = ['Start', 'Quit']
+        self.options = ['Drive', 'Copter', 'Quit']
         self.buttons = pygame.sprite.Group()
 
     def initGraphics(self, screen):
@@ -287,6 +288,9 @@ class Start(SceneBase):
             active_color = colors.RED
 
             if i == 0:
+                def action():
+                    self.SwitchToScene(DrivingScene())
+            elif i == 1:
                 def action():
                     self.SwitchToScene(CopterScene())
             else:
@@ -352,3 +356,75 @@ class Button(pygame.sprite.Sprite):
         self.image.blit(textsurf, textrect)
 
 
+class DrivingScene(SceneBase):
+    def __init__(self):
+        SceneBase.__init__(self)
+
+    # only needs to be called once throughout main loop
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        self.car = Car((screenWidth//2, screenHeight//2))
+
+    def ProcessInput(self, events, pressed_keys):
+        pass
+
+    def Update(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+
+        currentPos = geo.Vector2D(*mouse)
+        dr = currentPos - self.car.pos()
+
+        # follow mouse drag
+        if click[0]:
+            self.car.angle = dr.angle()
+            self.car.acceleration = 1
+            self.car.max_speed = min(self.car.MAX_FWD_SPEED, dr.length()/5)
+        elif click[2]:
+            self.car.angle = dr.angle()
+            self.car.acceleration = -1
+        else:
+            if self.car.speed > 0:
+                self.car.acceleration = -1
+            else:
+                self.car.acceleration = 0
+                self.car.speed = 0
+        self.car.update()
+
+    def Render(self):
+        self.screen.fill(colors.WHITE)
+        self.car.draw(self.screen)
+
+        self.drawCrossHairs()
+
+        pygame.display.flip()
+
+    def drawCrossHairs(self):
+        mouse = pygame.mouse.get_pos()
+        pressed = pygame.mouse.get_pressed()
+
+        offset = 5
+        length = 10
+        if pressed[0]:
+            pygame.draw.line(self.screen, colors.DARK_GREEN, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.DARK_GREEN, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.DARK_GREEN, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.DARK_GREEN, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+        elif pressed[2]:
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+        else:
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))

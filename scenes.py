@@ -378,10 +378,14 @@ class DrivingScene(SceneBase):
 
         self.car = Car((10, 10))
         self.powerups = pygame.sprite.Group()
+        boost = SpeedBoost([50, 15])
+        self.powerups.add(boost)
 
         self.terrain = pygame.sprite.Group()
         mid_grass = Grass((screenWidth//2, screenHeight//2), 0.8 * screenWidth, 0.8 * screenHeight)
         self.terrain.add(mid_grass)
+        mid_barrier = Barrier((screenWidth//2, screenHeight//2), 0.75 * screenWidth, 0.75 * screenHeight)
+        self.terrain.add(mid_barrier)
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -429,6 +433,15 @@ class DrivingScene(SceneBase):
             self.car.MAX_FWD_SPEED = self.car.DEFAULT_MAX_FWD_SPEED
             self.car.MAX_REV_SPEED = self.car.DEFAULT_MAX_REV_SPEED
 
+        if self.car.rect.top < 0:
+            self.car.rect.top = 0
+        if self.car.rect.bottom > screenHeight:
+            self.car.rect.bottom = screenHeight
+        if self.car.rect.left < 0:
+            self.car.rect.left = 0
+        if self.car.rect.right > screenWidth:
+            self.car.rect.right = screenWidth
+
         terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
                                                  collided=pygame.sprite.collide_rect)
 
@@ -436,6 +449,19 @@ class DrivingScene(SceneBase):
             if type(terrain) is Grass:
                 self.car.MAX_FWD_SPEED = 5
                 self.car.MAX_REV_SPEED = 5
+            elif type(terrain) is Barrier:
+                if self.car.rect.bottom > terrain.rect.top and self.car.rect.top < terrain.rect.bottom \
+                    and (self.car.rect.right <= terrain.rect.left + self.car.v.x or self.car.rect.left >= terrain.rect.right + self.car.v.x):
+                    if self.car.v.x > 0:
+                        self.car.rect.right = terrain.rect.left
+                    if self.car.v.x < 0:
+                        self.car.rect.left = terrain.rect.right
+                if self.car.rect.right > terrain.rect.left and self.car.rect.left < terrain.rect.right \
+                    and (self.car.rect.bottom <= terrain.rect.top + self.car.v.y or self.car.rect.top >= terrain.rect.bottom + self.car.v.y):
+                    if self.car.v.y > 0:
+                        self.car.rect.bottom = terrain.rect.top
+                    if self.car.v.y < 0:
+                        self.car.rect.top = terrain.rect.bottom
 
         self.powerups.update()
         self.car.update()

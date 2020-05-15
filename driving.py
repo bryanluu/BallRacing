@@ -84,3 +84,13 @@ class Grass(pygame.sprite.Sprite):
         self.rect.center = pos
         self.image = pygame.Surface([width, height])
         self.image.fill(colors.DARK_GREEN)
+
+class Barrier(pygame.sprite.Sprite):
+    def __init__(self, pos, width, height):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.rect = pygame.Rect(0, 0, width, height)
+        self.rect.center = pos
+        self.image = pygame.Surface([width, height])
+        self.image.fill((50, 50, 50))
+

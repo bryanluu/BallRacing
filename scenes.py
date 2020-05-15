@@ -362,6 +362,10 @@ class Button(pygame.sprite.Sprite):
 
 
 class DrivingScene(SceneBase):
+    POWERUP_DURATION = 2
+    DEFAULT_MAX_FWD_SPEED = 10
+    DEFAULT_MAX_REV_SPEED = 5
+
     def __init__(self):
         SceneBase.__init__(self)
 
@@ -373,6 +377,11 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         self.car = Car((screenWidth//2, screenHeight//2))
+        self.powerups = pygame.sprite.Group()
+
+        boost = SpeedBoost((100, 100))
+        self.powerups.add(boost)
+
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -407,10 +416,25 @@ class DrivingScene(SceneBase):
             else:
                 self.car.acceleration = 0
                 self.car.speed = 0
+
+        powerupsHit = pygame.sprite.spritecollide(self.car, self.powerups, True,
+                                                  collided=pygame.sprite.collide_rect)
+        for p in powerupsHit:
+            if type(p) is SpeedBoost:
+                self.car.MAX_FWD_SPEED = self.car.BOOST_FWD_SPEED
+                self.car.MAX_REV_SPEED = self.car.BOOST_REV_SPEED
+                self.car.lastPowerupTime = time.time()
+
+        if time.time() - self.car.lastPowerupTime > self.POWERUP_DURATION:
+            self.car.MAX_FWD_SPEED = self.car.DEFAULT_MAX_FWD_SPEED
+            self.car.MAX_REV_SPEED = self.car.DEFAULT_MAX_REV_SPEED
+
+        self.powerups.update()
         self.car.update()
 
     def Render(self):
         self.screen.fill(colors.WHITE)
+        self.powerups.draw(self.screen)
         self.car.draw(self.screen)
 
         self.drawCrossHairs()

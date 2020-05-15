@@ -74,3 +74,13 @@ class SpeedBoost(Powerup):
     def __init__(self, pos):
         Powerup.__init__(self, pos)
         self.color = colors.GREEN
+
+
+class Grass(pygame.sprite.Sprite):
+    def __init__(self, pos, width, height):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.rect = pygame.Rect(0, 0, width, height)
+        self.rect.center = pos
+        self.image = pygame.Surface([width, height])
+        self.image.fill(colors.DARK_GREEN)

@@ -376,12 +376,12 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.car = Car((screenWidth//2, screenHeight//2))
+        self.car = Car((10, 10))
         self.powerups = pygame.sprite.Group()
 
-        boost = SpeedBoost((100, 100))
-        self.powerups.add(boost)
-
+        self.terrain = pygame.sprite.Group()
+        mid_grass = Grass((screenWidth//2, screenHeight//2), 0.8 * screenWidth, 0.8 * screenHeight)
+        self.terrain.add(mid_grass)
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -429,11 +429,21 @@ class DrivingScene(SceneBase):
             self.car.MAX_FWD_SPEED = self.car.DEFAULT_MAX_FWD_SPEED
             self.car.MAX_REV_SPEED = self.car.DEFAULT_MAX_REV_SPEED
 
+        terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
+                                                 collided=pygame.sprite.collide_rect)
+
+        for terrain in terrainHit:
+            if type(terrain) is Grass:
+                self.car.MAX_FWD_SPEED = 5
+                self.car.MAX_REV_SPEED = 5
+
         self.powerups.update()
         self.car.update()
+        self.terrain.update()
 
     def Render(self):
         self.screen.fill(colors.WHITE)
+        self.terrain.draw(self.screen)
         self.powerups.draw(self.screen)
         self.car.draw(self.screen)
 

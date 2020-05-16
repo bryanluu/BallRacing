@@ -376,7 +376,7 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.car = Car((10, 10))
+        self.car = Car((10, screenHeight/2))
         self.powerups = pygame.sprite.Group()
         boost = SpeedBoost([50, 15])
         self.powerups.add(boost)
@@ -386,6 +386,9 @@ class DrivingScene(SceneBase):
         self.terrain.add(mid_grass)
         mid_barrier = Barrier((screenWidth//2, screenHeight//2), 0.75 * screenWidth, 0.75 * screenHeight)
         self.terrain.add(mid_barrier)
+
+        finishline = FinishLine((0, screenHeight/2), 0.1 * screenWidth, 10)
+        self.terrain.add(finishline)
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -468,7 +471,7 @@ class DrivingScene(SceneBase):
         self.terrain.update()
 
     def Render(self):
-        self.screen.fill(colors.WHITE)
+        self.screen.fill(colors.GRAY)
         self.terrain.draw(self.screen)
         self.powerups.draw(self.screen)
         self.car.draw(self.screen)

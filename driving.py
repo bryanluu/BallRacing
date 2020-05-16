@@ -94,3 +94,24 @@ class Barrier(pygame.sprite.Sprite):
         self.image = pygame.Surface([width, height])
         self.image.fill((50, 50, 50))
 
+class FinishLine(pygame.sprite.Sprite):
+    def __init__(self, pos, width, height, horizontal=True):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.rect = pygame.Rect(*pos, width, height)
+        self.image = pygame.Surface([width, height])
+
+        for i in range(8):
+            for j in range(2):
+                if horizontal:
+                    w, h = width/8, height/2
+                else:
+                    w, h = width/2, height/8
+
+                rect = pygame.Rect(i*w, j*h, w, h)
+                surf = pygame.Surface([w, h])
+                if (i+j)%2 == 0:
+                    surf.fill(colors.BLACK)
+                else:
+                    surf.fill(colors.WHITE)
+                self.image.blit(surf, rect)

@@ -363,8 +363,6 @@ class Button(pygame.sprite.Sprite):
 
 class DrivingScene(SceneBase):
     POWERUP_DURATION = 2
-    DEFAULT_MAX_FWD_SPEED = 10
-    DEFAULT_MAX_REV_SPEED = 5
 
     def __init__(self):
         SceneBase.__init__(self)
@@ -376,9 +374,9 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.car = Car((10, screenHeight/2))
+        self.car = Car((10, screenHeight/2), colors.RED)
         self.powerups = pygame.sprite.Group()
-        boost = SpeedBoost([50, 15])
+        boost = SpeedBoost([50, 50])
         self.powerups.add(boost)
 
         self.terrain = pygame.sprite.Group()
@@ -428,13 +426,12 @@ class DrivingScene(SceneBase):
                                                   collided=pygame.sprite.collide_rect)
         for p in powerupsHit:
             if type(p) is SpeedBoost:
-                self.car.MAX_FWD_SPEED = self.car.BOOST_FWD_SPEED
-                self.car.MAX_REV_SPEED = self.car.BOOST_REV_SPEED
+                self.car.boosted = True
                 self.car.lastPowerupTime = time.time()
 
+
         if time.time() - self.car.lastPowerupTime > self.POWERUP_DURATION:
-            self.car.MAX_FWD_SPEED = self.car.DEFAULT_MAX_FWD_SPEED
-            self.car.MAX_REV_SPEED = self.car.DEFAULT_MAX_REV_SPEED
+            self.car.boosted = False
 
         if self.car.rect.top < 0:
             self.car.rect.top = 0
@@ -448,10 +445,10 @@ class DrivingScene(SceneBase):
         terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
                                                  collided=pygame.sprite.collide_rect)
 
+        self.car.slowed = False # by default, Car isn't not slowed
         for terrain in terrainHit:
             if type(terrain) is Grass:
-                self.car.MAX_FWD_SPEED = 5
-                self.car.MAX_REV_SPEED = 5
+                self.car.slowed = True
             elif type(terrain) is Barrier:
                 if self.car.rect.bottom > terrain.rect.top and self.car.rect.top < terrain.rect.bottom \
                     and (self.car.rect.right <= terrain.rect.left + self.car.v.x or self.car.rect.left >= terrain.rect.right + self.car.v.x):

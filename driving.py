@@ -14,15 +14,18 @@ class Car(pygame.sprite.Sprite):
     DEFAULT_MAX_REV_SPEED = 5
     BOOST_FWD_SPEED = 15
     BOOST_REV_SPEED = 7
+    SLOWED_FWD_SPEED = 5
+    SLOWED_REV_SPEED = 5
 
-    def __init__(self, pos):
+    def __init__(self, pos, color):
         pygame.sprite.Sprite.__init__(self)
 
         self.rect = pygame.Rect(0, 0, 20, 20)
         self.rect.center = pos
 
         self.image = pygame.Surface([20, 20])
-        self.image.fill(colors.RED)
+        self.image.fill(color)
+        self.color = color
 
         self.angle = 0
         self.speed = 0
@@ -31,12 +34,29 @@ class Car(pygame.sprite.Sprite):
         self.v = geo.Vector2D.create_from_angle(self.angle, self.speed)
 
         self.lastPowerupTime = 0
+        self.boosted = False
+        self.slowed = False
 
     def draw(self, screen):
         image = pygame.transform.rotate(self.image, np.degrees(-self.angle))
         screen.blit(image, self.rect)
 
     def update(self):
+        if self.boosted:
+            if not self.slowed:
+                self.MAX_FWD_SPEED = self.BOOST_FWD_SPEED
+                self.MAX_REV_SPEED = self.BOOST_REV_SPEED
+            else:
+                self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
+                self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
+        else:
+            if not self.slowed:
+                self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
+                self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
+            else:
+                self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
+                self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
+
         self.speed = max(-self.MAX_REV_SPEED, min(self.max_speed, self.speed + self.acceleration))
         self.v = geo.Vector2D.create_from_angle(self.angle, self.speed)
         self.rect.move_ip(*self.v)

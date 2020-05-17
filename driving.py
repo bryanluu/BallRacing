@@ -16,6 +16,7 @@ class Car(pygame.sprite.Sprite):
     BOOST_REV_SPEED = 7
     SLOWED_FWD_SPEED = 5
     SLOWED_REV_SPEED = 5
+    TRAIL_LENGTH = 10
 
     def __init__(self, pos, color):
         pygame.sprite.Sprite.__init__(self)
@@ -31,14 +32,20 @@ class Car(pygame.sprite.Sprite):
         self.speed = 0
         self.max_speed = self.MAX_FWD_SPEED
         self.acceleration = 0
-        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed)
+        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
 
         self.lastPowerupTime = 0
         self.boosted = False
         self.slowed = False
+        self.trail = []
 
     def draw(self, screen):
-        image = pygame.transform.rotate(self.image, np.degrees(-self.angle))
+        # draw trail
+        if len(self.trail) > 1:
+            pygame.draw.aalines(screen, self.color, False, self.trail)
+
+        # draw car
+        image = pygame.transform.rotate(self.image, np.degrees(-self.angle)) # angle in radians
         screen.blit(image, self.rect)
 
     def update(self):
@@ -57,8 +64,15 @@ class Car(pygame.sprite.Sprite):
                 self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
                 self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
 
+        if self.boosted:
+            self.trail.append([self.rect.center[0], self.rect.center[1]])
+            while (len(self.trail) > self.TRAIL_LENGTH):
+                self.trail.pop(0)
+        else:
+            self.trail = []
+
         self.speed = max(-self.MAX_REV_SPEED, min(self.max_speed, self.speed + self.acceleration))
-        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed)
+        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
         self.rect.move_ip(*self.v)
 
     def pos(self):
@@ -66,13 +80,13 @@ class Car(pygame.sprite.Sprite):
 
     def driveTowards(self, dest):
         dr = dest - self.pos()
-        self.angle = dr.angle()
+        self.angle = dr.angle() # angle in radians
         self.acceleration = 1
         self.max_speed = min(self.MAX_FWD_SPEED, dr.length()/5)
 
     def driveAwayFrom(self, point):
         dr = point - self.pos()
-        self.angle = dr.angle()
+        self.angle = dr.angle() # angle in radians
         self.acceleration = -1
 
     def idle(self):

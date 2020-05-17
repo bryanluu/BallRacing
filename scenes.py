@@ -404,23 +404,15 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
 
-        currentPos = geo.Vector2D(*mouse)
-        dr = currentPos - self.car.pos()
+        mousePos = geo.Vector2D(*mouse)
 
         # follow mouse drag
         if click[0]:
-            self.car.angle = dr.angle()
-            self.car.acceleration = 1
-            self.car.max_speed = min(self.car.MAX_FWD_SPEED, dr.length()/5)
+            self.car.driveTowards(mousePos)
         elif click[2]:
-            self.car.angle = dr.angle()
-            self.car.acceleration = -1
+            self.car.driveAwayFrom(mousePos)
         else:
-            if self.car.speed > 0:
-                self.car.acceleration = -1
-            else:
-                self.car.acceleration = 0
-                self.car.speed = 0
+            self.car.idle()
 
         powerupsHit = pygame.sprite.spritecollide(self.car, self.powerups, True,
                                                   collided=pygame.sprite.collide_rect)

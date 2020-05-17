@@ -64,6 +64,24 @@ class Car(pygame.sprite.Sprite):
     def pos(self):
         return geo.Vector2D(*self.rect.center)
 
+    def driveTowards(self, dest):
+        dr = dest - self.pos()
+        self.angle = dr.angle()
+        self.acceleration = 1
+        self.max_speed = min(self.MAX_FWD_SPEED, dr.length()/5)
+
+    def driveAwayFrom(self, point):
+        dr = point - self.pos()
+        self.angle = dr.angle()
+        self.acceleration = -1
+
+    def idle(self):
+        if self.speed > 0:
+            self.acceleration = -1
+        else:
+            self.acceleration = 0
+            self.speed = 0
+
 
 class Powerup(pygame.sprite.Sprite):
     LOOP_TIME = 2 # time that the powerup loops through shades

@@ -487,10 +487,10 @@ class DrivingScene(SceneBase):
         offset = 5
         length = 10
         if pressed[0]:
-            pygame.draw.line(self.screen, (0, 200, 0), (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
-            pygame.draw.line(self.screen, (0, 200, 0), (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
-            pygame.draw.line(self.screen, (0, 200, 0), (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
-            pygame.draw.line(self.screen, (0, 200, 0), (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
         elif pressed[2]:
             pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
             pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))

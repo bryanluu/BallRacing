@@ -366,6 +366,7 @@ class Button(pygame.sprite.Sprite):
 
 class DrivingScene(SceneBase):
     POWERUP_DURATION = 2
+    LAP_LIMIT = 3
 
     def __init__(self):
         SceneBase.__init__(self)
@@ -473,6 +474,10 @@ class DrivingScene(SceneBase):
             elif type(terrain) is Barrier:
                 self.checkBarrierCollision(self.car, terrain)
 
+        if self.car.laps == self.LAP_LIMIT:
+            print("You finised!")
+            self.SwitchToScene(Start())
+
         self.powerups.update()
         self.car.update()
         self.terrain.update()
@@ -486,7 +491,7 @@ class DrivingScene(SceneBase):
         self.powerups.draw(self.screen)
         self.car.draw(self.screen)
 
-        lapSurf = self.lapText.render("Lap #{0}".format(self.car.laps+1),
+        lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.car.laps, self.LAP_LIMIT),
                                       True, colors.WHITE)
         lapRect = lapSurf.get_rect()
         lapRect.center = screenWidth / 2, screenHeight / 2

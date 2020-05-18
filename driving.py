@@ -39,6 +39,9 @@ class Car(pygame.sprite.Sprite):
         self.slowed = False
         self.trail = []
 
+        self.checkpoint = 0
+        self.laps = 0
+
     def draw(self, screen):
         # draw trail
         if len(self.trail) > 1:
@@ -71,6 +74,7 @@ class Car(pygame.sprite.Sprite):
         else:
             self.trail = []
 
+        # driving logic
         self.speed = max(-self.MAX_REV_SPEED, min(self.max_speed, self.speed + self.acceleration))
         self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
         self.rect.move_ip(*self.v)
@@ -137,6 +141,7 @@ class Grass(pygame.sprite.Sprite):
         self.image = pygame.Surface([width, height])
         self.image.fill(colors.DARK_GREEN)
 
+
 class Barrier(pygame.sprite.Sprite):
     def __init__(self, pos, width, height):
         pygame.sprite.Sprite.__init__(self)
@@ -146,23 +151,33 @@ class Barrier(pygame.sprite.Sprite):
         self.image = pygame.Surface([width, height])
         self.image.fill((50, 50, 50))
 
-class FinishLine(pygame.sprite.Sprite):
-    def __init__(self, pos, width, height, horizontal=True):
+
+class Checkpoint(pygame.sprite.Sprite):
+    def __init__(self, pos, width, height):
         pygame.sprite.Sprite.__init__(self)
 
-        self.rect = pygame.Rect(*pos, width, height)
+        self.rect = pygame.Rect(0, 0, width, height)
+        self.rect.center = pos
         self.image = pygame.Surface([width, height])
+        self.image.fill(colors.YELLOW)
+
+
+class FinishLine(Checkpoint):
+    def __init__(self, pos, width, height, horizontal=True):
+        Checkpoint.__init__(self, pos, width, height)
+
+        self.horizontal = horizontal
 
         for i in range(8):
             for j in range(2):
                 if horizontal:
-                    w, h = width/8, height/2
+                    w, h = width / 8, height / 2
                 else:
-                    w, h = width/2, height/8
+                    w, h = width / 2, height / 8
 
-                rect = pygame.Rect(i*w, j*h, w, h)
+                rect = pygame.Rect(i * w, j * h, w, h)
                 surf = pygame.Surface([w, h])
-                if (i+j)%2 == 0:
+                if (i + j) % 2 == 0:
                     surf.fill(colors.BLACK)
                 else:
                     surf.fill(colors.WHITE)

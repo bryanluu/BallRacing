@@ -288,7 +288,8 @@ class Start(SceneBase):
         font = pygame.font.Font('freesansbold.ttf', 20)
 
         for i, option in enumerate(self.options):
-            rect = pygame.Rect(int(screenWidth/2) - 50, int(screenHeight/2) - 100 + i*50, 100, 30)
+            rect = pygame.Rect(int(screenWidth / 2) - 50,
+                               int(screenHeight / 2) - 100 + i * 50, 100, 30)
             passive_color = colors.BLACK
             active_color = colors.RED
 
@@ -302,7 +303,8 @@ class Start(SceneBase):
                 def action():
                     self.Terminate()
 
-            button = Button(rect, action, font, active_color, option, colors.WHITE, passive_color, option, colors.WHITE)
+            button = Button(rect, action, font, active_color, option,
+                            colors.WHITE, passive_color, option, colors.WHITE)
 
             self.buttons.add(button)
 
@@ -342,7 +344,8 @@ class Button(pygame.sprite.Sprite):
         mouse = pygame.mouse.get_pos()
         pressed = pygame.mouse.get_pressed()
 
-        if self.rect.x <= mouse[0] <= self.rect.x + self.rect.w and self.rect.y <= mouse[1] <= self.rect.y + self.rect.h:
+        if self.rect.x <= mouse[0] <= self.rect.x + self.rect.w \
+                and self.rect.y <= mouse[1] <= self.rect.y + self.rect.h:
             self.image.fill(self.active_color)
             self.renderButtonText(self.active_text, self.active_textcolor)
 
@@ -374,19 +377,37 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.car = Car((10, screenHeight/2), colors.RED)
+        self.car = Car((10, screenHeight / 2), colors.RED)
         self.powerups = pygame.sprite.Group()
         boost = SpeedBoost([50, 50])
         self.powerups.add(boost)
 
         self.terrain = pygame.sprite.Group()
-        mid_grass = Grass((screenWidth//2, screenHeight//2), 0.8 * screenWidth, 0.8 * screenHeight)
+        mid_grass = Grass((screenWidth // 2, screenHeight // 2),
+                          0.8 * screenWidth, 0.8 * screenHeight)
         self.terrain.add(mid_grass)
-        mid_barrier = Barrier((screenWidth//2, screenHeight//2), 0.75 * screenWidth, 0.75 * screenHeight)
+        mid_barrier = Barrier((screenWidth // 2, screenHeight // 2),
+                              0.75 * screenWidth, 0.75 * screenHeight)
         self.terrain.add(mid_barrier)
 
-        finishline = FinishLine((0, screenHeight/2), 0.1 * screenWidth, 10)
+        finishline = FinishLine((0.125 * screenWidth/2, screenHeight / 2), 0.125 * screenWidth, 10)
         self.terrain.add(finishline)
+
+        checkpointTopLeft = Checkpoint((0.125 * screenWidth/2, 0.125 * screenHeight/2),
+                                       0.125 * screenWidth, 0.125 * screenHeight)
+        self.terrain.add(checkpointTopLeft)
+        checkpointTopRight = Checkpoint((screenWidth-0.125 * screenWidth/2, 0.125 * screenHeight/2),
+                                       0.125 * screenWidth, 0.125 * screenHeight)
+        self.terrain.add(checkpointTopRight)
+        checkpointBottomRight = Checkpoint((screenWidth-0.125 * screenWidth/2, screenHeight-0.125 * screenHeight/2),
+                                       0.125 * screenWidth, 0.125 * screenHeight)
+        self.terrain.add(checkpointBottomRight)
+        checkpointBottomLeft = Checkpoint((0.125 * screenWidth/2, screenHeight-0.125 * screenHeight/2),
+                                       0.125 * screenWidth, 0.125 * screenHeight)
+        self.terrain.add(checkpointBottomLeft)
+
+        self.checkpoints = [finishline, checkpointTopLeft, checkpointTopRight,
+                            checkpointBottomRight, checkpointBottomLeft]
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -403,7 +424,6 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-
         mousePos = geo.Vector2D(*mouse)
 
         # follow mouse drag
@@ -414,7 +434,9 @@ class DrivingScene(SceneBase):
         else:
             self.car.idle()
 
-        powerupsHit = pygame.sprite.spritecollide(self.car, self.powerups, True,
+        # Powerups collision
+        powerupsHit = pygame.sprite.spritecollide(self.car,
+                                                  self.powerups, True,
                                                   collided=pygame.sprite.collide_rect)
         for p in powerupsHit:
             if type(p) is SpeedBoost:
@@ -434,12 +456,24 @@ class DrivingScene(SceneBase):
         if self.car.rect.right > screenWidth:
             self.car.rect.right = screenWidth
 
+        # Terrain collision
         terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
                                                  collided=pygame.sprite.collide_rect)
 
-        self.car.slowed = False # by default, Car isn't not slowed
+        self.car.slowed = False  # by default, Car isn't not slowed
         for terrain in terrainHit:
-            if type(terrain) is Grass:
+            if issubclass(type(terrain), Checkpoint):
+                # check that this terrain checkpoint is the correct checkpoint
+                checkpointIndex = self.checkpoints.index(terrain)
+                lastCheckpointIndex = (checkpointIndex - 1) \
+                    % len(self.checkpoints)
+                if self.car.checkpoint == lastCheckpointIndex:
+                    if(checkpointIndex == 0):
+                        self.car.laps += 1
+                        print(self.car.laps)
+                    self.car.checkpoint = checkpointIndex
+                    # print(checkpointIndex)
+            elif type(terrain) is Grass:
                 self.car.slowed = True
             elif type(terrain) is Barrier:
                 if self.car.rect.bottom > terrain.rect.top and self.car.rect.top < terrain.rect.bottom \

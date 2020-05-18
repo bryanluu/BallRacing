@@ -159,7 +159,7 @@ class Checkpoint(pygame.sprite.Sprite):
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = pos
         self.image = pygame.Surface([width, height])
-        self.image.fill(colors.YELLOW)
+        # self.image.fill(colors.YELLOW) # uncomment to debug
 
 
 class FinishLine(Checkpoint):

@@ -390,24 +390,36 @@ class DrivingScene(SceneBase):
                               0.75 * screenWidth, 0.75 * screenHeight)
         self.terrain.add(mid_barrier)
 
-        finishline = FinishLine((0.125 * screenWidth/2, screenHeight / 2), 0.125 * screenWidth, 10)
-        self.terrain.add(finishline)
-
-        checkpointTopLeft = Checkpoint((0.125 * screenWidth/2, 0.125 * screenHeight/2),
-                                       0.125 * screenWidth, 0.125 * screenHeight)
+        checkpointTopLeft = Checkpoint((0.125 * screenWidth / 2,
+                                        0.125 * screenHeight / 2),
+                                       0.125 * screenWidth,
+                                       0.125 * screenHeight)
         self.terrain.add(checkpointTopLeft)
-        checkpointTopRight = Checkpoint((screenWidth-0.125 * screenWidth/2, 0.125 * screenHeight/2),
-                                       0.125 * screenWidth, 0.125 * screenHeight)
+        checkpointTopRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+                                        0.125 * screenHeight / 2),
+                                        0.125 * screenWidth,
+                                        0.125 * screenHeight)
         self.terrain.add(checkpointTopRight)
-        checkpointBottomRight = Checkpoint((screenWidth-0.125 * screenWidth/2, screenHeight-0.125 * screenHeight/2),
-                                       0.125 * screenWidth, 0.125 * screenHeight)
+        checkpointBottomRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+                                           screenHeight - 0.125 * screenHeight / 2),
+                                           0.125 * screenWidth,
+                                           0.125 * screenHeight)
         self.terrain.add(checkpointBottomRight)
-        checkpointBottomLeft = Checkpoint((0.125 * screenWidth/2, screenHeight-0.125 * screenHeight/2),
-                                       0.125 * screenWidth, 0.125 * screenHeight)
+        checkpointBottomLeft = Checkpoint((0.125 * screenWidth / 2,
+                                          screenHeight - 0.125 * screenHeight / 2),
+                                          0.125 * screenWidth,
+                                          0.125 * screenHeight)
         self.terrain.add(checkpointBottomLeft)
+        finishline = FinishLine((0.125 * screenWidth / 2,
+                                screenHeight / 2),
+                                0.125 * screenWidth,
+                                10)
+        self.terrain.add(finishline)
 
         self.checkpoints = [finishline, checkpointTopLeft, checkpointTopRight,
                             checkpointBottomRight, checkpointBottomLeft]
+
+        self.lapText = pygame.font.Font('freesansbold.ttf', 20)
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -443,18 +455,10 @@ class DrivingScene(SceneBase):
                 self.car.boosted = True
                 self.car.lastPowerupTime = time.time()
 
-
         if time.time() - self.car.lastPowerupTime > self.POWERUP_DURATION:
             self.car.boosted = False
 
-        if self.car.rect.top < 0:
-            self.car.rect.top = 0
-        if self.car.rect.bottom > screenHeight:
-            self.car.rect.bottom = screenHeight
-        if self.car.rect.left < 0:
-            self.car.rect.left = 0
-        if self.car.rect.right > screenWidth:
-            self.car.rect.right = screenWidth
+        self.checkOutOfBounds(self.car, screenWidth, screenHeight)
 
         # Terrain collision
         terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
@@ -463,41 +467,30 @@ class DrivingScene(SceneBase):
         self.car.slowed = False  # by default, Car isn't not slowed
         for terrain in terrainHit:
             if issubclass(type(terrain), Checkpoint):
-                # check that this terrain checkpoint is the correct checkpoint
-                checkpointIndex = self.checkpoints.index(terrain)
-                lastCheckpointIndex = (checkpointIndex - 1) \
-                    % len(self.checkpoints)
-                if self.car.checkpoint == lastCheckpointIndex:
-                    if(checkpointIndex == 0):
-                        self.car.laps += 1
-                        print(self.car.laps)
-                    self.car.checkpoint = checkpointIndex
-                    # print(checkpointIndex)
+                self.checkCheckpoints(self.car, terrain)
             elif type(terrain) is Grass:
                 self.car.slowed = True
             elif type(terrain) is Barrier:
-                if self.car.rect.bottom > terrain.rect.top and self.car.rect.top < terrain.rect.bottom \
-                    and (self.car.rect.right <= terrain.rect.left + self.car.v.x or self.car.rect.left >= terrain.rect.right + self.car.v.x):
-                    if self.car.v.x > 0:
-                        self.car.rect.right = terrain.rect.left
-                    if self.car.v.x < 0:
-                        self.car.rect.left = terrain.rect.right
-                if self.car.rect.right > terrain.rect.left and self.car.rect.left < terrain.rect.right \
-                    and (self.car.rect.bottom <= terrain.rect.top + self.car.v.y or self.car.rect.top >= terrain.rect.bottom + self.car.v.y):
-                    if self.car.v.y > 0:
-                        self.car.rect.bottom = terrain.rect.top
-                    if self.car.v.y < 0:
-                        self.car.rect.top = terrain.rect.bottom
+                self.checkBarrierCollision(self.car, terrain)
 
         self.powerups.update()
         self.car.update()
         self.terrain.update()
 
     def Render(self):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
         self.screen.fill(colors.GRAY)
         self.terrain.draw(self.screen)
         self.powerups.draw(self.screen)
         self.car.draw(self.screen)
+
+        lapSurf = self.lapText.render("Lap #{0}".format(self.car.laps+1),
+                                      True, colors.WHITE)
+        lapRect = lapSurf.get_rect()
+        lapRect.center = screenWidth / 2, screenHeight / 2
+        self.screen.blit(lapSurf, lapRect)
 
         self.drawCrossHairs()
 
@@ -525,6 +518,42 @@ class DrivingScene(SceneBase):
             pygame.draw.line(self.screen, colors.BLACK, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
             pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
 
+    def checkBarrierCollision(self, car, barrier):
+        if car.rect.bottom > barrier.rect.top and car.rect.top < barrier.rect.bottom \
+            and (car.rect.right <= barrier.rect.left + car.v.x or car.rect.left >= barrier.rect.right + car.v.x):
+            if car.v.x > 0:
+                car.rect.right = barrier.rect.left
+            if car.v.x < 0:
+                car.rect.left = barrier.rect.right
+        if car.rect.right > barrier.rect.left and car.rect.left < barrier.rect.right \
+            and (car.rect.bottom <= barrier.rect.top + car.v.y or car.rect.top >= barrier.rect.bottom + car.v.y):
+            if car.v.y > 0:
+                car.rect.bottom = barrier.rect.top
+            if car.v.y < 0:
+                car.rect.top = barrier.rect.bottom
+
+    def checkOutOfBounds(self, car, screenWidth, screenHeight):
+        if car.rect.top < 0:
+            car.rect.top = 0
+        if car.rect.bottom > screenHeight:
+            car.rect.bottom = screenHeight
+        if car.rect.left < 0:
+            car.rect.left = 0
+        if car.rect.right > screenWidth:
+            car.rect.right = screenWidth
+
+    def checkCheckpoints(self, car, checkpoint):
+        # current checkpoint
+        checkpointIndex = self.checkpoints.index(checkpoint)
+        # correct previous checkpoint
+        lastCheckpointIndex = (checkpointIndex - 1) \
+            % len(self.checkpoints)
+        # check that this terrain checkpoint is the correct checkpoint
+        if car.checkpoint == lastCheckpointIndex:
+            # if start is reached correctly
+            if(checkpointIndex == 0):
+                car.laps += 1
+            car.checkpoint = checkpointIndex
 
 
 class Pause(SceneBase):

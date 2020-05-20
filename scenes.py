@@ -67,24 +67,8 @@ class CopterScene(SceneBase):
 
         self.copter = Copter([screenWidth / 4, screenHeight / 2])
 
-        # generate walls
-        self.gap_height = self.GAP_FRACTION * screenHeight
-        self.gap_pos = self.rng.random() \
-            * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
-            + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
-
         self.walls = pygame.sprite.Group()
-
-        for i in range(int(np.ceil(screenWidth/Wall.WIDTH))+2):
-            self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
-            self.gap_pos = min(max(self.gap_pos, self.gap_height/2 + self.GAP_CLEARANCE * screenHeight),
-                               (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height/2)
-            top = Wall(0, round(self.gap_pos - self.gap_height/2))
-            bottom = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
-            top.rect.left = i*Wall.WIDTH
-            bottom.rect.left = i*Wall.WIDTH
-            self.walls.add(top)
-            self.walls.add(bottom)
+        self.generateWalls()
 
         self.scoreText = pygame.font.Font('freesansbold.ttf', 20)
         self.highscoreText = pygame.font.Font('freesansbold.ttf', 12)
@@ -118,76 +102,42 @@ class CopterScene(SceneBase):
         self.v += self.a
         self.copter.rect.move_ip(*self.v)
 
-        # if ceiling is hit
-        if self.copter.rect.top < 0:
-            self.EndGame()
+        self.checkOutOfBounds()
 
-        # if floor is hit
-        if self.copter.rect.bottom > screenHeight:
-            self.EndGame()
-
-        for hit_list in pygame.sprite.spritecollide(self.copter, self.walls,
-                                                    False, collided=pygame.sprite.collide_rect):
-            self.EndGame()
-            break
-
-        for hit_list in pygame.sprite.spritecollide(self.copter, self.obstacles,
-                                                    False, collided=pygame.sprite.collide_rect):
-            self.EndGame()
-            break
+        self.checkCollisions()
 
         for wall in self.walls:
+            # if wall goes out of bounds
             if wall.rect.right < 0:
                 wall.kill()
 
-                # generate new wall
-                if wall.rect.top == 0:
-                    if (time.time() - self.lastnarrow) >= self.NARROWING_INTERVAL:
-                        self.gap_height = max(0.95 * self.gap_height, 3 * self.copter.rect.height)
-                        self.lastnarrow = time.time()
-                    if (time.time() - self.lastfluct) >= self.FLUCTUATION_INTERVAL:
-                        self.FLUCTUATION = min(self.FLUCTUATION + 1, self.MAX_FLUCTUATION)
-                        self.lastfluct = time.time()
-                    self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
-                    self.gap_pos = min(max(self.gap_pos, self.gap_height/2 + self.GAP_CLEARANCE * screenHeight),
-                                       (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height/2)
-                    new = Wall(0, round(self.gap_pos - self.gap_height/2))
-                else:
-                    new = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+                # create upper wall if the dead wall is upper
+                new = self.generateWall(wall.rect.top == 0)
                 self.walls.add(new)
-
-        self.walls.update()
 
         # add obstacles
         self.addObstacles()
-        self.obstacles.update()
         for ob in self.obstacles:
             # if obstacle flies off-screen, delete it
-            if ob.rect.left > screenWidth \
-                    or ob.rect.right < 0 \
-                    or ob.rect.top > screenHeight \
-                    or ob.rect.bottom < 0:
+            if self.isOutOfBounds(ob.rect):
                 ob.kill()
 
         if click[0]:
             if self.copter.weapon == Weapon.MACHINE_GUN:
-                if time.time() - self.copter.lastShootTime > self.copter.MACHINE_GUN_RELOAD_TIME:
-                    dr = geo.Vector2D(*mouse) - geo.Vector2D(*self.copter.rect.center)
-                    self.copter.angle = (np.degrees(geo.Vector2D.angle_between(dr, geo.Vector2D(1, 0))))
-                    bullet = self.copter.shoot()
+                if self.copter.readyToShoot():
+                    bullet = self.copter.shootTowards(mouse)
 
                     self.projectiles.add(bullet)
 
         for p in self.projectiles:
             # if projectile flies off-screen
-            if p.rect.left > screenWidth \
-                    or p.rect.right < 0 \
-                    or p.rect.top > screenHeight \
-                    or p.rect.bottom < 0:
+            if self.isOutOfBounds(p.rect):
                 p.kill()
 
             self.checkProjectileHit(p)
 
+        self.walls.update()
+        self.obstacles.update()
         self.projectiles.update()
 
     def Render(self):
@@ -270,6 +220,80 @@ class CopterScene(SceneBase):
             bat = Bat(y, Wall.SPEED*1.2)
             self.obstacles.add(bat)
             self.timeOfLastAdd['bats'] = time.time()
+
+    def generateWalls(self):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+        # generate walls
+        self.gap_height = self.GAP_FRACTION * screenHeight
+        self.gap_pos = self.rng.random() \
+            * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
+            + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
+
+        for i in range(int(np.ceil(screenWidth / Wall.WIDTH)) + 2):
+            self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
+            self.gap_pos = utilities.bound(
+                self.gap_height / 2 + self.GAP_CLEARANCE * screenHeight,
+                self.gap_pos,
+                (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height / 2)
+            top = Wall(0, round(self.gap_pos - self.gap_height / 2))
+            bottom = Wall(round(self.gap_pos + self.gap_height / 2),
+                          screenHeight - round(self.gap_pos + self.gap_height / 2))
+            top.rect.left = i * Wall.WIDTH
+            bottom.rect.left = i * Wall.WIDTH
+            self.walls.add(top)
+            self.walls.add(bottom)
+
+    def generateWall(self, top=True):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        if top == 0:
+            if (time.time() - self.lastnarrow) >= self.NARROWING_INTERVAL:
+                self.gap_height = max(0.95 * self.gap_height, 3 * self.copter.rect.height)
+                self.lastnarrow = time.time()
+            if (time.time() - self.lastfluct) >= self.FLUCTUATION_INTERVAL:
+                self.FLUCTUATION = min(self.FLUCTUATION + 1, self.MAX_FLUCTUATION)
+                self.lastfluct = time.time()
+            self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
+            self.gap_pos = utilities.bound(self.gap_height / 2 + self.GAP_CLEARANCE * screenHeight,
+                                 self.gap_pos,
+                                 (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height / 2)
+            new = Wall(0, round(self.gap_pos - self.gap_height/2))
+        else:
+            new = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+        return new
+
+    def checkOutOfBounds(self):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+        # if ceiling is hit
+        if self.copter.rect.top < 0:
+            self.EndGame()
+
+        # if floor is hit
+        if self.copter.rect.bottom > screenHeight:
+            self.EndGame()
+
+    def checkCollisions(self):
+        for hit_list in pygame.sprite.spritecollide(self.copter, self.walls,
+                                                    False, collided=pygame.sprite.collide_rect):
+            self.EndGame()
+            break
+
+        for hit_list in pygame.sprite.spritecollide(self.copter, self.obstacles,
+                                                    False, collided=pygame.sprite.collide_rect):
+            self.EndGame()
+            break
+
+    def isOutOfBounds(self, rect):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        return rect.left > screenWidth \
+            or rect.right < 0 \
+            or rect.top > screenHeight \
+            or rect.bottom < 0
 
 
 class Start(SceneBase):
@@ -440,9 +464,9 @@ class DrivingScene(SceneBase):
         mousePos = geo.Vector2D(*mouse)
 
         # follow mouse drag
-        if click[0]:
+        if click[0]: # left click
             self.car.driveTowards(mousePos)
-        elif click[2]:
+        elif click[2]: # right click
             self.car.driveAwayFrom(mousePos)
         else:
             self.car.idle()

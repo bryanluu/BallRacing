@@ -76,6 +76,15 @@ class Copter(pygame.sprite.Sprite):
 
         return ball
 
+    def readyToShoot(self):
+        return time.time() - self.lastShootTime > self.MACHINE_GUN_RELOAD_TIME
+
+    def shootTowards(self, pos):
+        # shoot towards the mouse location
+        dr = geo.Vector2D(*pos) - geo.Vector2D(*self.rect.center)
+        self.angle = (np.degrees(geo.Vector2D.angle_between(dr, geo.Vector2D(1, 0))))
+        return self.shoot()
+
 
 class Wall(pygame.sprite.Sprite):
     WIDTH = 10

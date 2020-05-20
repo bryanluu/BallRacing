@@ -2,6 +2,12 @@ import pygame
 import os
 from pygame.locals import *
 
+# returns a number x if it falls within the bounds [lb, ub]
+# otherwise returns the closest bound
+def bound(lb, x, ub):
+    return min(max(lb, x), ub)
+
+
 def load_image(name, colorkey=None):
     fullname = os.path.join('resources', name)
     try:

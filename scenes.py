@@ -33,6 +33,362 @@ class SceneBase:
         self.SwitchToScene(None)
 
 
+class Start(SceneBase):
+    def __init__(self):
+        SceneBase.__init__(self)
+
+        self.options = ['Drive', 'Copter', 'Quit']
+        self.buttons = pygame.sprite.Group()
+
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        font = pygame.font.Font('freesansbold.ttf', 20)
+
+        for i, option in enumerate(self.options):
+            rect = pygame.Rect(int(screenWidth / 2) - 50,
+                               int(screenHeight / 2) - 100 + i * 50, 100, 30)
+            passive_color = colors.BLACK
+            active_color = colors.RED
+
+            if i == 0:
+                def action():
+                    self.SwitchToScene(DrivingScene())
+            elif i == 1:
+                def action():
+                    self.SwitchToScene(CopterScene())
+            else:
+                def action():
+                    self.Terminate()
+
+            button = Button(rect, action, font, active_color, option,
+                            colors.WHITE, passive_color, option, colors.WHITE)
+
+            self.buttons.add(button)
+
+    def ProcessInput(self, events, pressed_keys):
+        pass
+
+    def Update(self):
+        self.buttons.update()
+
+    def Render(self):
+        self.screen.fill(colors.WHITE)
+        self.buttons.draw(self.screen)
+        pygame.display.flip()
+
+
+class Button(pygame.sprite.Sprite):
+    def __init__(self, rect, action, font, active_color, active_text, active_textcolor, passive_color, passive_text, passive_textcolor):
+        # Call the parent class (Sprite) constructor
+        pygame.sprite.Sprite.__init__(self)
+
+        self.image = pygame.Surface((rect[2], rect[3]))
+
+        self.rect = rect
+
+        self.font = font
+
+        self.action = action
+
+        self.active_color = active_color
+        self.active_text = active_text
+        self.active_textcolor = active_textcolor
+        self.passive_color = passive_color
+        self.passive_text = passive_text
+        self.passive_textcolor = passive_textcolor
+
+    def update(self):
+        mouse = pygame.mouse.get_pos()
+        pressed = pygame.mouse.get_pressed()
+
+        if self.rect.x <= mouse[0] <= self.rect.x + self.rect.w \
+                and self.rect.y <= mouse[1] <= self.rect.y + self.rect.h:
+            self.image.fill(self.active_color)
+            self.renderButtonText(self.active_text, self.active_textcolor)
+
+            if pressed[0]:
+                self.action()
+        else:
+            self.image.fill(self.passive_color)
+            self.renderButtonText(self.passive_text, self.passive_textcolor)
+
+    def renderButtonText(self, text, color):
+        textsurf = self.font.render(text, True, color)
+        textrect = textsurf.get_rect()
+        # Put text in the middle of button
+        textrect.left = self.rect.width/2 - textrect.width/2
+        textrect.top = self.rect.height/2 - textrect.height/2
+        self.image.blit(textsurf, textrect)
+
+
+class Pause(SceneBase):
+    def __init__(self, paused):
+        SceneBase.__init__(self)
+        self.next = self
+        self.paused = paused
+        self.options = ["Resume", "Quit"]
+        self.buttons = pygame.sprite.Group()
+
+    # only needs to be called once throughout main loop
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+        self.pauseText = pygame.font.Font('freesansbold.ttf', 25)
+        font = pygame.font.Font('freesansbold.ttf', 20)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        for i, option in enumerate(self.options):
+            rect = pygame.Rect(int(screenWidth/2) - 50, int(screenHeight/2) + i*50, 100, 30)
+            passive_color = colors.BLACK
+            active_color = colors.RED
+
+            if i == 0:
+                def action():
+                    self.SwitchToScene(self.paused)
+                    self.paused.next = self.paused
+            else:
+                def action():
+                    self.SwitchToScene(Start())
+
+            button = Button(rect, action, font, active_color, option, colors.WHITE, passive_color, option, colors.WHITE)
+
+            self.buttons.add(button)
+
+    def ProcessInput(self, events, pressed_keys):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                alt_pressed = pressed_keys[pygame.K_LALT] or \
+                              pressed_keys[pygame.K_RALT]
+                if event.key == pygame.K_p:
+                    self.SwitchToScene(self.paused)
+                    self.paused.next = self.paused
+
+
+    def Update(self):
+        self.buttons.update()
+
+    def Render(self):
+        self.screen.fill(colors.WHITE)
+        self.screen.set_alpha(100)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+        promptSurf = self.pauseText.render("PAUSED", True, (0, 0, 0))
+        promptRect = promptSurf.get_rect()
+        promptRect.center = screenWidth/2, 50
+        self.screen.blit(promptSurf, promptRect)
+
+        self.buttons.draw(self.screen)
+        pygame.display.flip()
+
+
+class DrivingScene(SceneBase):
+    POWERUP_DURATION = 2
+    LAP_LIMIT = 3
+
+    def __init__(self):
+        SceneBase.__init__(self)
+
+    # only needs to be called once throughout main loop
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        self.cars = pygame.sprite.Group()
+        self.player = Car((10, screenHeight / 2), colors.RED)
+        self.cars.add(self.player)
+
+        self.powerups = pygame.sprite.Group()
+        boost = SpeedBoost([50, 50])
+        self.powerups.add(boost)
+
+        self.terrain = pygame.sprite.Group()
+        mid_grass = Grass((screenWidth // 2, screenHeight // 2),
+                          0.8 * screenWidth, 0.8 * screenHeight)
+        self.terrain.add(mid_grass)
+        mid_barrier = Barrier((screenWidth // 2, screenHeight // 2),
+                              0.75 * screenWidth, 0.75 * screenHeight)
+        self.terrain.add(mid_barrier)
+
+        checkpointTopLeft = Checkpoint((0.125 * screenWidth / 2,
+                                        0.125 * screenHeight / 2),
+                                       0.125 * screenWidth,
+                                       0.125 * screenHeight)
+        self.terrain.add(checkpointTopLeft)
+        checkpointTopRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+                                        0.125 * screenHeight / 2),
+                                        0.125 * screenWidth,
+                                        0.125 * screenHeight)
+        self.terrain.add(checkpointTopRight)
+        checkpointBottomRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+                                           screenHeight - 0.125 * screenHeight / 2),
+                                           0.125 * screenWidth,
+                                           0.125 * screenHeight)
+        self.terrain.add(checkpointBottomRight)
+        checkpointBottomLeft = Checkpoint((0.125 * screenWidth / 2,
+                                          screenHeight - 0.125 * screenHeight / 2),
+                                          0.125 * screenWidth,
+                                          0.125 * screenHeight)
+        self.terrain.add(checkpointBottomLeft)
+        finishline = FinishLine((0.125 * screenWidth / 2,
+                                screenHeight / 2),
+                                0.125 * screenWidth,
+                                10)
+        self.terrain.add(finishline)
+
+        self.checkpoints = [finishline, checkpointTopLeft, checkpointTopRight,
+                            checkpointBottomRight, checkpointBottomLeft]
+
+        self.lapText = pygame.font.Font('freesansbold.ttf', 20)
+
+    def ProcessInput(self, events, pressed_keys):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                alt_pressed = pressed_keys[pygame.K_LALT] or \
+                              pressed_keys[pygame.K_RALT]
+                if event.key == pygame.K_SPACE or event.key == pygame.K_p:
+                    self.SwitchToScene(Pause(self))
+
+    def Update(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        mousePos = geo.Vector2D(*mouse)
+
+        # follow mouse drag
+        if click[0]: # left click
+            self.player.driveTowards(mousePos)
+        elif click[2]: # right click
+            self.player.driveAwayFrom(mousePos)
+        else:
+            self.player.idle()
+
+        # Powerups collision
+        powerupsHit = pygame.sprite.spritecollide(self.player,
+                                                  self.powerups, True,
+                                                  collided=pygame.sprite.collide_rect)
+        for p in powerupsHit:
+            if type(p) is SpeedBoost:
+                self.player.boosted = True
+                self.player.lastPowerupTime = time.time()
+
+        if time.time() - self.player.lastPowerupTime > self.POWERUP_DURATION:
+            self.player.boosted = False
+
+        self.checkOutOfBounds(self.player, screenWidth, screenHeight)
+
+        # Terrain collision
+        terrainHit = pygame.sprite.spritecollide(self.player, self.terrain, False,
+                                                 collided=pygame.sprite.collide_rect)
+
+        self.player.slowed = False  # by default, Car isn't not slowed
+        for terrain in terrainHit:
+            if issubclass(type(terrain), Checkpoint):
+                self.checkCheckpoints(self.player, terrain)
+            elif type(terrain) is Grass:
+                self.player.slowed = True
+            elif type(terrain) is Barrier:
+                self.checkBarrierCollision(self.player, terrain)
+
+        if self.player.laps == self.LAP_LIMIT:
+            print("You finised!")
+            self.SwitchToScene(Start())
+
+        self.powerups.update()
+        self.cars.update()
+        self.terrain.update()
+
+    def Render(self):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        self.screen.fill(colors.GRAY)
+        self.terrain.draw(self.screen)
+        self.powerups.draw(self.screen)
+
+        for car in self.cars:
+            car.draw(self.screen)
+
+        lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
+                                      True, colors.WHITE)
+        lapRect = lapSurf.get_rect()
+        lapRect.center = screenWidth / 2, screenHeight / 2
+        self.screen.blit(lapSurf, lapRect)
+
+        self.drawCrossHairs()
+
+        pygame.display.flip()
+
+    def drawCrossHairs(self):
+        mouse = pygame.mouse.get_pos()
+        pressed = pygame.mouse.get_pressed()
+
+        offset = 5
+        length = 10
+        if pressed[0]:
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+        elif pressed[2]:
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.RED, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+        else:
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
+            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
+
+    def checkBarrierCollision(self, car, barrier):
+        if car.rect.bottom > barrier.rect.top and car.rect.top < barrier.rect.bottom \
+            and (car.rect.right <= barrier.rect.left + car.v.x or car.rect.left >= barrier.rect.right + car.v.x):
+            if car.v.x > 0:
+                car.rect.right = barrier.rect.left
+            if car.v.x < 0:
+                car.rect.left = barrier.rect.right
+        if car.rect.right > barrier.rect.left and car.rect.left < barrier.rect.right \
+            and (car.rect.bottom <= barrier.rect.top + car.v.y or car.rect.top >= barrier.rect.bottom + car.v.y):
+            if car.v.y > 0:
+                car.rect.bottom = barrier.rect.top
+            if car.v.y < 0:
+                car.rect.top = barrier.rect.bottom
+
+    def checkOutOfBounds(self, car, screenWidth, screenHeight):
+        if car.rect.top < 0:
+            car.rect.top = 0
+        if car.rect.bottom > screenHeight:
+            car.rect.bottom = screenHeight
+        if car.rect.left < 0:
+            car.rect.left = 0
+        if car.rect.right > screenWidth:
+            car.rect.right = screenWidth
+
+    def checkCheckpoints(self, car, checkpoint):
+        # current checkpoint
+        checkpointIndex = self.checkpoints.index(checkpoint)
+        # correct previous checkpoint
+        lastCheckpointIndex = (checkpointIndex - 1) \
+            % len(self.checkpoints)
+        # check that this terrain checkpoint is the correct checkpoint
+        if car.checkpoint == lastCheckpointIndex:
+            # if start is reached correctly
+            if(checkpointIndex == 0):
+                car.laps += 1
+            car.checkpoint = checkpointIndex
+
+
 class CopterScene(SceneBase):
     GAP_FRACTION = 0.7 # the starting fraction of gap space
     GAP_CLEARANCE = 0.05 # how much clearance the gap has between screen borders
@@ -294,354 +650,3 @@ class CopterScene(SceneBase):
             or rect.right < 0 \
             or rect.top > screenHeight \
             or rect.bottom < 0
-
-
-class Start(SceneBase):
-    def __init__(self):
-        SceneBase.__init__(self)
-
-        self.options = ['Drive', 'Copter', 'Quit']
-        self.buttons = pygame.sprite.Group()
-
-    def initGraphics(self, screen):
-        SceneBase.initGraphics(self, screen)
-
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-
-        font = pygame.font.Font('freesansbold.ttf', 20)
-
-        for i, option in enumerate(self.options):
-            rect = pygame.Rect(int(screenWidth / 2) - 50,
-                               int(screenHeight / 2) - 100 + i * 50, 100, 30)
-            passive_color = colors.BLACK
-            active_color = colors.RED
-
-            if i == 0:
-                def action():
-                    self.SwitchToScene(DrivingScene())
-            elif i == 1:
-                def action():
-                    self.SwitchToScene(CopterScene())
-            else:
-                def action():
-                    self.Terminate()
-
-            button = Button(rect, action, font, active_color, option,
-                            colors.WHITE, passive_color, option, colors.WHITE)
-
-            self.buttons.add(button)
-
-    def ProcessInput(self, events, pressed_keys):
-        pass
-
-    def Update(self):
-        self.buttons.update()
-
-    def Render(self):
-        self.screen.fill(colors.WHITE)
-        self.buttons.draw(self.screen)
-        pygame.display.flip()
-
-
-class Button(pygame.sprite.Sprite):
-    def __init__(self, rect, action, font, active_color, active_text, active_textcolor, passive_color, passive_text, passive_textcolor):
-        # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
-
-        self.image = pygame.Surface((rect[2], rect[3]))
-
-        self.rect = rect
-
-        self.font = font
-
-        self.action = action
-
-        self.active_color = active_color
-        self.active_text = active_text
-        self.active_textcolor = active_textcolor
-        self.passive_color = passive_color
-        self.passive_text = passive_text
-        self.passive_textcolor = passive_textcolor
-
-    def update(self):
-        mouse = pygame.mouse.get_pos()
-        pressed = pygame.mouse.get_pressed()
-
-        if self.rect.x <= mouse[0] <= self.rect.x + self.rect.w \
-                and self.rect.y <= mouse[1] <= self.rect.y + self.rect.h:
-            self.image.fill(self.active_color)
-            self.renderButtonText(self.active_text, self.active_textcolor)
-
-            if pressed[0]:
-                self.action()
-        else:
-            self.image.fill(self.passive_color)
-            self.renderButtonText(self.passive_text, self.passive_textcolor)
-
-    def renderButtonText(self, text, color):
-        textsurf = self.font.render(text, True, color)
-        textrect = textsurf.get_rect()
-        # Put text in the middle of button
-        textrect.left = self.rect.width/2 - textrect.width/2
-        textrect.top = self.rect.height/2 - textrect.height/2
-        self.image.blit(textsurf, textrect)
-
-
-class DrivingScene(SceneBase):
-    POWERUP_DURATION = 2
-    LAP_LIMIT = 3
-
-    def __init__(self):
-        SceneBase.__init__(self)
-
-    # only needs to be called once throughout main loop
-    def initGraphics(self, screen):
-        SceneBase.initGraphics(self, screen)
-
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-
-        self.car = Car((10, screenHeight / 2), colors.RED)
-        self.powerups = pygame.sprite.Group()
-        boost = SpeedBoost([50, 50])
-        self.powerups.add(boost)
-
-        self.terrain = pygame.sprite.Group()
-        mid_grass = Grass((screenWidth // 2, screenHeight // 2),
-                          0.8 * screenWidth, 0.8 * screenHeight)
-        self.terrain.add(mid_grass)
-        mid_barrier = Barrier((screenWidth // 2, screenHeight // 2),
-                              0.75 * screenWidth, 0.75 * screenHeight)
-        self.terrain.add(mid_barrier)
-
-        checkpointTopLeft = Checkpoint((0.125 * screenWidth / 2,
-                                        0.125 * screenHeight / 2),
-                                       0.125 * screenWidth,
-                                       0.125 * screenHeight)
-        self.terrain.add(checkpointTopLeft)
-        checkpointTopRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
-                                        0.125 * screenHeight / 2),
-                                        0.125 * screenWidth,
-                                        0.125 * screenHeight)
-        self.terrain.add(checkpointTopRight)
-        checkpointBottomRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
-                                           screenHeight - 0.125 * screenHeight / 2),
-                                           0.125 * screenWidth,
-                                           0.125 * screenHeight)
-        self.terrain.add(checkpointBottomRight)
-        checkpointBottomLeft = Checkpoint((0.125 * screenWidth / 2,
-                                          screenHeight - 0.125 * screenHeight / 2),
-                                          0.125 * screenWidth,
-                                          0.125 * screenHeight)
-        self.terrain.add(checkpointBottomLeft)
-        finishline = FinishLine((0.125 * screenWidth / 2,
-                                screenHeight / 2),
-                                0.125 * screenWidth,
-                                10)
-        self.terrain.add(finishline)
-
-        self.checkpoints = [finishline, checkpointTopLeft, checkpointTopRight,
-                            checkpointBottomRight, checkpointBottomLeft]
-
-        self.lapText = pygame.font.Font('freesansbold.ttf', 20)
-
-    def ProcessInput(self, events, pressed_keys):
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                alt_pressed = pressed_keys[pygame.K_LALT] or \
-                              pressed_keys[pygame.K_RALT]
-                if event.key == pygame.K_SPACE or event.key == pygame.K_p:
-                    self.SwitchToScene(Pause(self))
-
-    def Update(self):
-        mouse = pygame.mouse.get_pos()
-        click = pygame.mouse.get_pressed()
-
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-
-        mousePos = geo.Vector2D(*mouse)
-
-        # follow mouse drag
-        if click[0]: # left click
-            self.car.driveTowards(mousePos)
-        elif click[2]: # right click
-            self.car.driveAwayFrom(mousePos)
-        else:
-            self.car.idle()
-
-        # Powerups collision
-        powerupsHit = pygame.sprite.spritecollide(self.car,
-                                                  self.powerups, True,
-                                                  collided=pygame.sprite.collide_rect)
-        for p in powerupsHit:
-            if type(p) is SpeedBoost:
-                self.car.boosted = True
-                self.car.lastPowerupTime = time.time()
-
-        if time.time() - self.car.lastPowerupTime > self.POWERUP_DURATION:
-            self.car.boosted = False
-
-        self.checkOutOfBounds(self.car, screenWidth, screenHeight)
-
-        # Terrain collision
-        terrainHit = pygame.sprite.spritecollide(self.car, self.terrain, False,
-                                                 collided=pygame.sprite.collide_rect)
-
-        self.car.slowed = False  # by default, Car isn't not slowed
-        for terrain in terrainHit:
-            if issubclass(type(terrain), Checkpoint):
-                self.checkCheckpoints(self.car, terrain)
-            elif type(terrain) is Grass:
-                self.car.slowed = True
-            elif type(terrain) is Barrier:
-                self.checkBarrierCollision(self.car, terrain)
-
-        if self.car.laps == self.LAP_LIMIT:
-            print("You finised!")
-            self.SwitchToScene(Start())
-
-        self.powerups.update()
-        self.car.update()
-        self.terrain.update()
-
-    def Render(self):
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-
-        self.screen.fill(colors.GRAY)
-        self.terrain.draw(self.screen)
-        self.powerups.draw(self.screen)
-        self.car.draw(self.screen)
-
-        lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.car.laps, self.LAP_LIMIT),
-                                      True, colors.WHITE)
-        lapRect = lapSurf.get_rect()
-        lapRect.center = screenWidth / 2, screenHeight / 2
-        self.screen.blit(lapSurf, lapRect)
-
-        self.drawCrossHairs()
-
-        pygame.display.flip()
-
-    def drawCrossHairs(self):
-        mouse = pygame.mouse.get_pos()
-        pressed = pygame.mouse.get_pressed()
-
-        offset = 5
-        length = 10
-        if pressed[0]:
-            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
-            pygame.draw.line(self.screen, colors.GREEN, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
-            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
-            pygame.draw.line(self.screen, colors.GREEN, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
-        elif pressed[2]:
-            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
-            pygame.draw.line(self.screen, colors.RED, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
-            pygame.draw.line(self.screen, colors.RED, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
-            pygame.draw.line(self.screen, colors.RED, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
-        else:
-            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] - offset), (mouse[0], mouse[1] - length))
-            pygame.draw.line(self.screen, colors.BLACK, (mouse[0], mouse[1] + offset), (mouse[0], mouse[1] + length))
-            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] - offset, mouse[1]), (mouse[0] - length, mouse[1]))
-            pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
-
-    def checkBarrierCollision(self, car, barrier):
-        if car.rect.bottom > barrier.rect.top and car.rect.top < barrier.rect.bottom \
-            and (car.rect.right <= barrier.rect.left + car.v.x or car.rect.left >= barrier.rect.right + car.v.x):
-            if car.v.x > 0:
-                car.rect.right = barrier.rect.left
-            if car.v.x < 0:
-                car.rect.left = barrier.rect.right
-        if car.rect.right > barrier.rect.left and car.rect.left < barrier.rect.right \
-            and (car.rect.bottom <= barrier.rect.top + car.v.y or car.rect.top >= barrier.rect.bottom + car.v.y):
-            if car.v.y > 0:
-                car.rect.bottom = barrier.rect.top
-            if car.v.y < 0:
-                car.rect.top = barrier.rect.bottom
-
-    def checkOutOfBounds(self, car, screenWidth, screenHeight):
-        if car.rect.top < 0:
-            car.rect.top = 0
-        if car.rect.bottom > screenHeight:
-            car.rect.bottom = screenHeight
-        if car.rect.left < 0:
-            car.rect.left = 0
-        if car.rect.right > screenWidth:
-            car.rect.right = screenWidth
-
-    def checkCheckpoints(self, car, checkpoint):
-        # current checkpoint
-        checkpointIndex = self.checkpoints.index(checkpoint)
-        # correct previous checkpoint
-        lastCheckpointIndex = (checkpointIndex - 1) \
-            % len(self.checkpoints)
-        # check that this terrain checkpoint is the correct checkpoint
-        if car.checkpoint == lastCheckpointIndex:
-            # if start is reached correctly
-            if(checkpointIndex == 0):
-                car.laps += 1
-            car.checkpoint = checkpointIndex
-
-
-class Pause(SceneBase):
-    def __init__(self, paused):
-        SceneBase.__init__(self)
-        self.next = self
-        self.paused = paused
-        self.options = ["Resume", "Quit"]
-        self.buttons = pygame.sprite.Group()
-
-    # only needs to be called once throughout main loop
-    def initGraphics(self, screen):
-        SceneBase.initGraphics(self, screen)
-        self.pauseText = pygame.font.Font('freesansbold.ttf', 25)
-        font = pygame.font.Font('freesansbold.ttf', 20)
-
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-
-        for i, option in enumerate(self.options):
-            rect = pygame.Rect(int(screenWidth/2) - 50, int(screenHeight/2) + i*50, 100, 30)
-            passive_color = colors.BLACK
-            active_color = colors.RED
-
-            if i == 0:
-                def action():
-                    self.SwitchToScene(self.paused)
-                    self.paused.next = self.paused
-            else:
-                def action():
-                    self.SwitchToScene(Start())
-
-            button = Button(rect, action, font, active_color, option, colors.WHITE, passive_color, option, colors.WHITE)
-
-            self.buttons.add(button)
-
-    def ProcessInput(self, events, pressed_keys):
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                alt_pressed = pressed_keys[pygame.K_LALT] or \
-                              pressed_keys[pygame.K_RALT]
-                if event.key == pygame.K_p:
-                    self.SwitchToScene(self.paused)
-                    self.paused.next = self.paused
-
-
-    def Update(self):
-        self.buttons.update()
-
-    def Render(self):
-        self.screen.fill(colors.WHITE)
-        self.screen.set_alpha(100)
-
-        info = pygame.display.Info()
-        screenWidth, screenHeight = info.current_w, info.current_h
-        promptSurf = self.pauseText.render("PAUSED", True, (0, 0, 0))
-        promptRect = promptSurf.get_rect()
-        promptRect.center = screenWidth/2, 50
-        self.screen.blit(promptSurf, promptRect)
-
-        self.buttons.draw(self.screen)
-        pygame.display.flip()

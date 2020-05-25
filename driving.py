@@ -8,14 +8,14 @@ import geometry as geo
 
 
 class Car(pygame.sprite.Sprite):
-    MAX_FWD_SPEED = 10
+    MAX_FWD_SPEED = 7
     MAX_REV_SPEED = 5
-    DEFAULT_MAX_FWD_SPEED = 10
+    DEFAULT_MAX_FWD_SPEED = 7
     DEFAULT_MAX_REV_SPEED = 5
-    BOOST_FWD_SPEED = 15
+    BOOST_FWD_SPEED = 12
     BOOST_REV_SPEED = 7
-    SLOWED_FWD_SPEED = 5
-    SLOWED_REV_SPEED = 5
+    SLOWED_FWD_SPEED = 4
+    SLOWED_REV_SPEED = 4
     TRAIL_LENGTH = 10
 
     def __init__(self, pos, color):

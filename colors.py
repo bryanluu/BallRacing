@@ -6,6 +6,7 @@ BLACK = (0, 0, 0)
 GRAY = (150, 150, 150)
 WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
+PURPLE = (160, 32, 240)
 
 DARK_RED = (150, 0, 0)
 DARK_GREEN = (0, 150, 0)

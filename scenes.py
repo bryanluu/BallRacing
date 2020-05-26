@@ -206,8 +206,8 @@ class DrivingScene(SceneBase):
         self.cars.add(self.player)
 
         self.powerups = pygame.sprite.Group()
-        boost = SpeedBoost([50, 50])
-        self.powerups.add(boost)
+        powerup = Powerup([50, 50], PowerupType.SPEED_BOOST)
+        self.powerups.add(powerup)
 
         self.terrain = pygame.sprite.Group()
         mid_grass = Grass((screenWidth // 2, screenHeight // 2),
@@ -273,36 +273,37 @@ class DrivingScene(SceneBase):
         else:
             self.player.idle()
 
-        # Powerups collision
-        powerupsHit = pygame.sprite.spritecollide(self.player,
-                                                  self.powerups, True,
-                                                  collided=pygame.sprite.collide_rect)
-        for p in powerupsHit:
-            if type(p) is SpeedBoost:
-                self.player.boosted = True
-                self.player.lastPowerupTime = time.time()
 
-        if time.time() - self.player.lastPowerupTime > self.POWERUP_DURATION:
-            self.player.boosted = False
+        for car in self.cars:
+            # Powerups collision
+            powerupsHit = pygame.sprite.spritecollide(car,
+                                                      self.powerups, True,
+                                                      collided=pygame.sprite.collide_rect)
+            for p in powerupsHit:
+                car.power = p
+                car.lastPowerupTime = time.time()
 
-        self.checkOutOfBounds(self.player, screenWidth, screenHeight)
+            if time.time() - car.lastPowerupTime > self.POWERUP_DURATION:
+                car.power = None
 
-        # Terrain collision
-        terrainHit = pygame.sprite.spritecollide(self.player, self.terrain, False,
-                                                 collided=pygame.sprite.collide_rect)
+            self.checkOutOfBounds(car, screenWidth, screenHeight)
 
-        self.player.slowed = False  # by default, Car isn't not slowed
-        for terrain in terrainHit:
-            if issubclass(type(terrain), Checkpoint):
-                self.checkCheckpoints(self.player, terrain)
-            elif type(terrain) is Grass:
-                self.player.slowed = True
-            elif type(terrain) is Barrier:
-                self.checkBarrierCollision(self.player, terrain)
+            # Terrain collision
+            terrainHit = pygame.sprite.spritecollide(car, self.terrain, False,
+                                                     collided=pygame.sprite.collide_rect)
 
-        if self.player.laps == self.LAP_LIMIT:
-            print("You finised!")
-            self.SwitchToScene(Start())
+            car.slowed = False  # by default, Car isn't slowed
+            for terrain in terrainHit:
+                if issubclass(type(terrain), Checkpoint):
+                    self.checkCheckpoints(car, terrain)
+                elif type(terrain) is Grass:
+                    car.slowed = True
+                elif type(terrain) is Barrier:
+                    self.checkBarrierCollision(car, terrain)
+
+            if car.laps == self.LAP_LIMIT:
+                print("You finished!")
+                self.SwitchToScene(Start())
 
         self.powerups.update()
         self.cars.update()

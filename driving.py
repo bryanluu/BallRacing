@@ -7,6 +7,14 @@ import time
 import geometry as geo
 
 
+class PowerupType(Enum):
+    SPEED_BOOST = 0 # grants moderate speed boost
+    SLOWDOWN = 1 # slows max speed
+    RANDOMIZER = 2 # randomizes speed
+    POWER_WHEELS = 3 # terrain has no effect on speed
+    REVERSER = 4 # wheels go in reverse direction
+
+
 class Car(pygame.sprite.Sprite):
     MAX_FWD_SPEED = 7
     MAX_REV_SPEED = 5
@@ -16,10 +24,16 @@ class Car(pygame.sprite.Sprite):
     BOOST_REV_SPEED = 7
     SLOWED_FWD_SPEED = 4
     SLOWED_REV_SPEED = 4
+    MAX_RANDOM_SPEED = 15
+    MIN_RANDOM_SPEED = 5
+    RANDOM_SPREAD = 3
     TRAIL_LENGTH = 10
 
     def __init__(self, pos, color):
         pygame.sprite.Sprite.__init__(self)
+
+        # initialize RNG for randomizer
+        self.rng = np.random.default_rng()
 
         self.rect = pygame.Rect(0, 0, 20, 20)
         self.rect.center = pos
@@ -35,7 +49,7 @@ class Car(pygame.sprite.Sprite):
         self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
 
         self.lastPowerupTime = 0
-        self.boosted = False
+        self.power = None
         self.slowed = False
         self.trail = []
 
@@ -45,29 +59,44 @@ class Car(pygame.sprite.Sprite):
     def draw(self, screen):
         # draw trail
         if len(self.trail) > 1:
-            pygame.draw.aalines(screen, self.color, False, self.trail)
+            pygame.draw.aalines(screen, self.power.color, False, self.trail)
 
         # draw car
         image = pygame.transform.rotate(self.image, np.degrees(-self.angle)) # angle in radians
         screen.blit(image, self.rect)
 
     def update(self):
-        if self.boosted:
+        if self.hasPower(PowerupType.SPEED_BOOST):
             if not self.slowed:
                 self.MAX_FWD_SPEED = self.BOOST_FWD_SPEED
                 self.MAX_REV_SPEED = self.BOOST_REV_SPEED
             else:
                 self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
                 self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
-        else:
+        elif self.hasPower(PowerupType.RANDOMIZER):
             if not self.slowed:
-                self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
-                self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
+                # randomize speed according to a standard normal
+                self.MAX_FWD_SPEED = utilities.bound(self.MIN_RANDOM_SPEED,
+                                                        self.rng.standard_normal()
+                                                        * self.RANDOM_SPREAD
+                                                        + self.MAX_FWD_SPEED,
+                                                        self.MAX_RANDOM_SPEED)
+                self.MAX_REV_SPEED = self.BOOST_REV_SPEED
             else:
                 self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
                 self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
+        elif self.hasPower(PowerupType.POWER_WHEELS):
+            self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
+            self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
+        else:
+            if self.slowed or self.hasPower(PowerupType.SLOWDOWN):
+                self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
+                self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
+            else:
+                self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
+                self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
 
-        if self.boosted:
+        if self.hasPower():
             self.trail.append([self.rect.center[0], self.rect.center[1]])
             while (len(self.trail) > self.TRAIL_LENGTH):
                 self.trail.pop(0)
@@ -85,13 +114,24 @@ class Car(pygame.sprite.Sprite):
     def driveTowards(self, dest):
         dr = dest - self.pos()
         self.angle = dr.angle() # angle in radians
-        self.acceleration = 1
+
+        if self.hasPower(PowerupType.REVERSER):
+            self.acceleration = -1
+        else:
+            self.acceleration = 1
+
         self.max_speed = min(self.MAX_FWD_SPEED, dr.length()/5)
 
     def driveAwayFrom(self, point):
         dr = point - self.pos()
         self.angle = dr.angle() # angle in radians
-        self.acceleration = -1
+
+        if self.hasPower(PowerupType.REVERSER):
+            self.acceleration = 1
+        else:
+            self.acceleration = -1
+
+        self.max_speed = min(self.MAX_REV_SPEED, dr.length()/5)
 
     def idle(self):
         if self.speed > 0:
@@ -100,18 +140,38 @@ class Car(pygame.sprite.Sprite):
             self.acceleration = 0
             self.speed = 0
 
+    def hasPower(self, type=None):
+        if type is None:
+            return self.power
+        else:
+            return self.power and self.power.type == type
+
 
 class Powerup(pygame.sprite.Sprite):
-    LOOP_TIME = 2 # time that the powerup loops through shades
-    def __init__(self, pos):
+    LOOP_TIME = 2  # time that the powerup loops through shades
+
+    def __init__(self, pos, type):
         pygame.sprite.Sprite.__init__(self)
 
         self.rect = pygame.Rect(0, 0, 10, 10)
         self.rect.center = pos
 
         self.image = pygame.Surface([10, 10])
-        self.color = None
         self.lastLoop = time.time()
+        self.type = type
+
+        if type == PowerupType.SPEED_BOOST:
+            self.color = colors.GREEN
+        elif type == PowerupType.SLOWDOWN:
+            self.color = colors.YELLOW
+        elif type == PowerupType.RANDOMIZER:
+            self.color = colors.PURPLE
+        elif type == PowerupType.POWER_WHEELS:
+            self.color = colors.BLUE
+        elif type == PowerupType.REVERSER:
+            self.color = colors.RED
+        else:
+            raise Exception("Invalid powerup!")
 
     def update(self):
         t = time.time() - self.lastLoop
@@ -119,18 +179,12 @@ class Powerup(pygame.sprite.Sprite):
         if (t > self.LOOP_TIME):
             self.lastLoop = time.time()
         else:
+            # find the shade of the color using a linear seesaw
             color = (1-0.3*(1-abs(t-self.LOOP_TIME/2)/(self.LOOP_TIME/2)))*color
         self.image.fill(color)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
-
-
-class SpeedBoost(Powerup):
-    def __init__(self, pos):
-        Powerup.__init__(self, pos)
-        self.color = colors.GREEN
-
 
 class Grass(pygame.sprite.Sprite):
     def __init__(self, pos, width, height):

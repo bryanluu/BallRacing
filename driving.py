@@ -14,6 +14,7 @@ class PowerupType(Enum):
     POWER_WHEELS = 3  # terrain has no effect on speed
     REVERSER = 4  # wheels go in reverse direction
     CONTROLLED_BOOST = 5  # a controlled boost
+    NUMBER_POWERUPS = 6 # number of valid powerups
 
 
 class Car(pygame.sprite.Sprite):
@@ -207,17 +208,44 @@ class Car(pygame.sprite.Sprite):
 
 
 class Powerup(pygame.sprite.Sprite):
-    LOOP_TIME = 2  # time that the powerup loops through shades
+    LOOP_TIME = 2  # time that the powerup loops through types
+    MIN_LOOP_TIME = 0.5  # minimum loop time
+    MAX_LOOP_TIME = 3.5 # maximum loop time
     DEFAULT_DURATION = 2  # time that the powerup lasts for
 
-    def __init__(self, pos, type):
+    def __init__(self, pos, type, switch=True):
         pygame.sprite.Sprite.__init__(self)
+
+        # initialize RNG for randomizer
+        self.rng = np.random.default_rng()
 
         self.rect = pygame.Rect(0, 0, 10, 10)
         self.rect.center = pos
 
         self.image = pygame.Surface([10, 10])
+        self.switchTo(type)
+        self.switch = switch
         self.lastLoop = time.time()
+
+    def update(self):
+        t = time.time() - self.lastLoop
+        color = np.array(self.color)
+        if (t > self.LOOP_TIME):
+            if self.switch:
+                newType = PowerupType(int(self.rng.random() * PowerupType.NUMBER_POWERUPS.value))
+                self.switchTo(newType)
+                self.LOOP_TIME = utilities.bound(self.MIN_LOOP_TIME,
+                                                 self.LOOP_TIME + self.rng.standard_normal() * 0.5,
+                                                 self.MAX_LOOP_TIME)
+            self.lastLoop = time.time()
+
+        else:
+            # find the shade of the color using a linear seesaw
+            color = (1-0.3*(1-abs(t-self.LOOP_TIME/2)/(self.LOOP_TIME/2)))*color
+        self.image.fill(color)
+
+    # switch powerup type
+    def switchTo(self, type):
         self.type = type
         self.duration = self.DEFAULT_DURATION
 
@@ -234,23 +262,13 @@ class Powerup(pygame.sprite.Sprite):
         elif type == PowerupType.REVERSER:
             self.color = colors.RED
         elif type == PowerupType.CONTROLLED_BOOST:
-            self.color = colors.GOLD
+            self.color = colors.ORANGE
             self.duration = self.DEFAULT_DURATION / 2
         else:
             raise Exception("Invalid powerup!")
 
         self.timeLeft = self.duration
         self.startTimeLeft = self.timeLeft
-
-    def update(self):
-        t = time.time() - self.lastLoop
-        color = np.array(self.color)
-        if (t > self.LOOP_TIME):
-            self.lastLoop = time.time()
-        else:
-            # find the shade of the color using a linear seesaw
-            color = (1-0.3*(1-abs(t-self.LOOP_TIME/2)/(self.LOOP_TIME/2)))*color
-        self.image.fill(color)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -272,7 +290,7 @@ class Barrier(pygame.sprite.Sprite):
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = pos
         self.image = pygame.Surface([width, height])
-        self.image.fill((50, 50, 50))
+        self.image.fill(colors.DARK_GRAY)
 
 
 class Checkpoint(pygame.sprite.Sprite):

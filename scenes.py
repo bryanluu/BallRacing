@@ -188,7 +188,6 @@ class Pause(SceneBase):
 
 
 class DrivingScene(SceneBase):
-    POWERUP_DURATION = 2
     LAP_LIMIT = 3
 
     def __init__(self):
@@ -253,8 +252,13 @@ class DrivingScene(SceneBase):
             if event.type == pygame.KEYDOWN:
                 alt_pressed = pressed_keys[pygame.K_LALT] or \
                               pressed_keys[pygame.K_RALT]
-                if event.key == pygame.K_SPACE or event.key == pygame.K_p:
+                if event.key == pygame.K_p:
                     self.SwitchToScene(Pause(self))
+                if event.key == pygame.K_SPACE:
+                    self.player.activatePower()
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_SPACE:
+                    self.player.deactivatePower()
 
     def Update(self):
         mouse = pygame.mouse.get_pos()
@@ -279,12 +283,8 @@ class DrivingScene(SceneBase):
             powerupsHit = pygame.sprite.spritecollide(car,
                                                       self.powerups, True,
                                                       collided=pygame.sprite.collide_rect)
-            for p in powerupsHit:
-                car.power = p
-                car.lastPowerupTime = time.time()
-
-            if time.time() - car.lastPowerupTime > self.POWERUP_DURATION:
-                car.power = None
+            for power in powerupsHit:
+                car.givePower(power)
 
             self.checkOutOfBounds(car, screenWidth, screenHeight)
 

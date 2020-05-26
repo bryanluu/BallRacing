@@ -52,6 +52,7 @@ class Car(pygame.sprite.Sprite):
         self.power = None
         self.slowed = False
         self.trail = []
+        self.powerActive = False
 
         self.checkpoint = 0
         self.laps = 0
@@ -61,42 +62,67 @@ class Car(pygame.sprite.Sprite):
         if len(self.trail) > 1:
             pygame.draw.aalines(screen, self.power.color, False, self.trail)
 
-        # draw car
-        image = pygame.transform.rotate(self.image, np.degrees(-self.angle)) # angle in radians
+        if(self.hasPower()):
+            # find the shade of the color using a linear ramp
+            color = np.array(self.power.color)
+            color = (1 - 0.3 * (self.power.duration
+                                 - self.power.timeLeft)
+                                  / self.power.duration) * color
+            self.power.image.fill(color)
+
+            # draw powerup on car
+            self.power.rect.center = [self.rect.width/2, self.rect.height/2]
+            self.image.blit(self.power.image, self.power.rect)
+
+        # rotate car using angle in degrees and draw car
+        image = pygame.transform.rotate(self.image,
+                                        np.degrees(-self.angle))
         screen.blit(image, self.rect)
 
     def update(self):
-        if self.hasPower(PowerupType.SPEED_BOOST):
+        # powerup logic
+        if self.powerActive:
+            timeSpentActivated = time.time() - self.lastPowerupTime
+            if timeSpentActivated >= self.power.startTimeLeft:
+                self.deactivatePower()
+                self.removePower()
+            else:
+                self.power.timeLeft = self.power.startTimeLeft - timeSpentActivated
+        if self.hasPower() and self.power.timeLeft <= 0:
+            self.removePower()
+
+        # speed logic
+        if self.powerActive and self.hasPower(PowerupType.SPEED_BOOST):
             if not self.slowed:
                 self.MAX_FWD_SPEED = self.BOOST_FWD_SPEED
                 self.MAX_REV_SPEED = self.BOOST_REV_SPEED
             else:
                 self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
                 self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
-        elif self.hasPower(PowerupType.RANDOMIZER):
+        elif self.powerActive and self.hasPower(PowerupType.RANDOMIZER):
             if not self.slowed:
                 # randomize speed according to a standard normal
                 self.MAX_FWD_SPEED = utilities.bound(self.MIN_RANDOM_SPEED,
-                                                        self.rng.standard_normal()
-                                                        * self.RANDOM_SPREAD
-                                                        + self.MAX_FWD_SPEED,
-                                                        self.MAX_RANDOM_SPEED)
+                                                     self.rng.standard_normal()
+                                                     * self.RANDOM_SPREAD
+                                                     + self.MAX_FWD_SPEED,
+                                                     self.MAX_RANDOM_SPEED)
                 self.MAX_REV_SPEED = self.BOOST_REV_SPEED
             else:
                 self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
                 self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
-        elif self.hasPower(PowerupType.POWER_WHEELS):
+        elif self.powerActive and self.hasPower(PowerupType.POWER_WHEELS):
             self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
             self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
         else:
-            if self.slowed or self.hasPower(PowerupType.SLOWDOWN):
+            if self.slowed or (self.powerActive and self.hasPower(PowerupType.SLOWDOWN)):
                 self.MAX_FWD_SPEED = self.SLOWED_FWD_SPEED
                 self.MAX_REV_SPEED = self.SLOWED_REV_SPEED
             else:
                 self.MAX_FWD_SPEED = self.DEFAULT_MAX_FWD_SPEED
                 self.MAX_REV_SPEED = self.DEFAULT_MAX_REV_SPEED
 
-        if self.hasPower():
+        if self.powerActive and self.hasPower():
             self.trail.append([self.rect.center[0], self.rect.center[1]])
             while (len(self.trail) > self.TRAIL_LENGTH):
                 self.trail.pop(0)
@@ -140,15 +166,44 @@ class Car(pygame.sprite.Sprite):
             self.acceleration = 0
             self.speed = 0
 
+    # checks if the car has a power if none given, or else the given powertype
     def hasPower(self, type=None):
         if type is None:
             return self.power
         else:
             return self.power and self.power.type == type
 
+    # activates powerup if the car has one
+    def activatePower(self):
+        if self.hasPower():
+            self.powerActive = True
+            self.lastPowerupTime = time.time()
+            self.power.startTimeLeft = self.power.timeLeft
+
+    # deactivates powerup if the car has one
+    def deactivatePower(self):
+        if self.hasPower(PowerupType.SLOWDOWN):
+            return  # don't allow deactivation externally
+
+        self.powerActive = False
+
+
+    # gives power to car
+    def givePower(self, power):
+        self.power = power
+        if power.type == PowerupType.SLOWDOWN:
+            self.activatePower()
+
+    # removes power from car
+    def removePower(self):
+        self.image.fill(self.color)
+        self.power = None
+        self.powerActive = False
+
 
 class Powerup(pygame.sprite.Sprite):
     LOOP_TIME = 2  # time that the powerup loops through shades
+    DEFAULT_DURATION = 2 # time that the powerup lasts for
 
     def __init__(self, pos, type):
         pygame.sprite.Sprite.__init__(self)
@@ -159,6 +214,7 @@ class Powerup(pygame.sprite.Sprite):
         self.image = pygame.Surface([10, 10])
         self.lastLoop = time.time()
         self.type = type
+        self.duration = self.DEFAULT_DURATION
 
         if type == PowerupType.SPEED_BOOST:
             self.color = colors.GREEN
@@ -166,12 +222,17 @@ class Powerup(pygame.sprite.Sprite):
             self.color = colors.YELLOW
         elif type == PowerupType.RANDOMIZER:
             self.color = colors.PURPLE
+            self.duration = 1.5 * self.DEFAULT_DURATION
         elif type == PowerupType.POWER_WHEELS:
             self.color = colors.BLUE
+            self.duration = 2 * self.DEFAULT_DURATION
         elif type == PowerupType.REVERSER:
             self.color = colors.RED
         else:
             raise Exception("Invalid powerup!")
+
+        self.timeLeft = self.duration
+        self.startTimeLeft = self.timeLeft
 
     def update(self):
         t = time.time() - self.lastLoop

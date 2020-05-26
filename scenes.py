@@ -205,7 +205,7 @@ class DrivingScene(SceneBase):
         self.cars.add(self.player)
 
         self.powerups = pygame.sprite.Group()
-        powerup = Powerup([50, 50], PowerupType.SPEED_BOOST)
+        powerup = Powerup([50, 50], PowerupType.CONTROLLED_BOOST)
         self.powerups.add(powerup)
 
         self.terrain = pygame.sprite.Group()

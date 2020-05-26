@@ -8,11 +8,12 @@ import geometry as geo
 
 
 class PowerupType(Enum):
-    SPEED_BOOST = 0 # grants moderate speed boost
-    SLOWDOWN = 1 # slows max speed
-    RANDOMIZER = 2 # randomizes speed
-    POWER_WHEELS = 3 # terrain has no effect on speed
-    REVERSER = 4 # wheels go in reverse direction
+    SPEED_BOOST = 0  # grants moderate speed boost
+    SLOWDOWN = 1  # slows max speed
+    RANDOMIZER = 2  # randomizes speed
+    POWER_WHEELS = 3  # terrain has no effect on speed
+    REVERSER = 4  # wheels go in reverse direction
+    CONTROLLED_BOOST = 5  # a controlled boost
 
 
 class Car(pygame.sprite.Sprite):
@@ -44,9 +45,10 @@ class Car(pygame.sprite.Sprite):
 
         self.angle = 0
         self.speed = 0
-        self.max_speed = self.MAX_FWD_SPEED
+        self.maxSpeed = self.MAX_FWD_SPEED
         self.acceleration = 0
-        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
+        self.v = geo.Vector2D.create_from_angle(self.angle,
+                                                self.speed)  # angle in radians
 
         self.lastPowerupTime = 0
         self.power = None
@@ -66,12 +68,13 @@ class Car(pygame.sprite.Sprite):
             # find the shade of the color using a linear ramp
             color = np.array(self.power.color)
             color = (1 - 0.3 * (self.power.duration
-                                 - self.power.timeLeft)
-                                  / self.power.duration) * color
+                                - self.power.timeLeft)
+                                / self.power.duration) * color
             self.power.image.fill(color)
 
             # draw powerup on car
-            self.power.rect.center = [self.rect.width/2, self.rect.height/2]
+            self.power.rect.center = [self.rect.width / 2,
+                                      self.rect.height / 2]
             self.image.blit(self.power.image, self.power.rect)
 
         # rotate car using angle in degrees and draw car
@@ -83,16 +86,17 @@ class Car(pygame.sprite.Sprite):
         # powerup logic
         if self.powerActive:
             timeSpentActivated = time.time() - self.lastPowerupTime
-            if timeSpentActivated >= self.power.startTimeLeft:
+            self.power.timeLeft = self.power.startTimeLeft - timeSpentActivated
+            if self.power.timeLeft <= 0:
                 self.deactivatePower()
                 self.removePower()
-            else:
-                self.power.timeLeft = self.power.startTimeLeft - timeSpentActivated
         if self.hasPower() and self.power.timeLeft <= 0:
             self.removePower()
 
         # speed logic
-        if self.powerActive and self.hasPower(PowerupType.SPEED_BOOST):
+        if self.powerActive \
+            and (self.hasPower(PowerupType.SPEED_BOOST)
+            or self.hasPower(PowerupType.CONTROLLED_BOOST)):
             if not self.slowed:
                 self.MAX_FWD_SPEED = self.BOOST_FWD_SPEED
                 self.MAX_REV_SPEED = self.BOOST_REV_SPEED
@@ -130,8 +134,10 @@ class Car(pygame.sprite.Sprite):
             self.trail = []
 
         # driving logic
-        self.speed = max(-self.MAX_REV_SPEED, min(self.max_speed, self.speed + self.acceleration))
-        self.v = geo.Vector2D.create_from_angle(self.angle, self.speed) # angle in radians
+        self.speed = max(-self.MAX_REV_SPEED,
+                         min(self.maxSpeed, self.speed + self.acceleration))
+        self.v = geo.Vector2D.create_from_angle(self.angle,
+                                                self.speed)  # angle in radians
         self.rect.move_ip(*self.v)
 
     def pos(self):
@@ -139,25 +145,25 @@ class Car(pygame.sprite.Sprite):
 
     def driveTowards(self, dest):
         dr = dest - self.pos()
-        self.angle = dr.angle() # angle in radians
+        self.angle = dr.angle()  # angle in radians
 
         if self.hasPower(PowerupType.REVERSER):
             self.acceleration = -1
         else:
             self.acceleration = 1
 
-        self.max_speed = min(self.MAX_FWD_SPEED, dr.length()/5)
+        self.maxSpeed = min(self.MAX_FWD_SPEED, dr.length() / 5)
 
     def driveAwayFrom(self, point):
         dr = point - self.pos()
-        self.angle = dr.angle() # angle in radians
+        self.angle = dr.angle()  # angle in radians
 
         if self.hasPower(PowerupType.REVERSER):
             self.acceleration = 1
         else:
             self.acceleration = -1
 
-        self.max_speed = min(self.MAX_REV_SPEED, dr.length()/5)
+        self.maxSpeed = min(self.MAX_REV_SPEED, dr.length() / 5)
 
     def idle(self):
         if self.speed > 0:
@@ -182,11 +188,10 @@ class Car(pygame.sprite.Sprite):
 
     # deactivates powerup if the car has one
     def deactivatePower(self):
-        if self.hasPower(PowerupType.SLOWDOWN):
-            return  # don't allow deactivation externally
-
-        self.powerActive = False
-
+        if self.hasPower(PowerupType.CONTROLLED_BOOST):
+            self.powerActive = False
+        else:
+            return  # don't allow activation externally for now
 
     # gives power to car
     def givePower(self, power):
@@ -203,7 +208,7 @@ class Car(pygame.sprite.Sprite):
 
 class Powerup(pygame.sprite.Sprite):
     LOOP_TIME = 2  # time that the powerup loops through shades
-    DEFAULT_DURATION = 2 # time that the powerup lasts for
+    DEFAULT_DURATION = 2  # time that the powerup lasts for
 
     def __init__(self, pos, type):
         pygame.sprite.Sprite.__init__(self)
@@ -228,6 +233,9 @@ class Powerup(pygame.sprite.Sprite):
             self.duration = 2 * self.DEFAULT_DURATION
         elif type == PowerupType.REVERSER:
             self.color = colors.RED
+        elif type == PowerupType.CONTROLLED_BOOST:
+            self.color = colors.GOLD
+            self.duration = self.DEFAULT_DURATION / 2
         else:
             raise Exception("Invalid powerup!")
 

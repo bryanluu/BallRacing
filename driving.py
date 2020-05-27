@@ -212,7 +212,8 @@ class Car(pygame.sprite.Sprite):
 
 
 class Powerup(pygame.sprite.Sprite):
-    LOOP_TIME = 2  # time that the powerup loops through types
+    DEFAULT_LOOP_TIME = 2  # default time that the powerup loops through types
+    DEFAULT_LOOP_SPREAD = 0.5  # spread of loop times
     MIN_LOOP_TIME = 0.5  # minimum loop time
     MAX_LOOP_TIME = 3.5 # maximum loop time
     DEFAULT_DURATION = 2  # time that the powerup lasts for
@@ -234,24 +235,26 @@ class Powerup(pygame.sprite.Sprite):
     def update(self):
         t = time.time() - self.lastLoop
         color = np.array(self.color)
-        if (t > self.LOOP_TIME):
+        if (t > self.loopTime):
             if self.switch:
                 newType = PowerupType(int(self.rng.random() * PowerupType.NUMBER_POWERUPS.value))
                 self.switchTo(newType)
-                self.LOOP_TIME = utilities.bound(self.MIN_LOOP_TIME,
-                                                 self.LOOP_TIME + self.rng.standard_normal() * 0.5,
+                self.loopTime = utilities.bound(self.MIN_LOOP_TIME,
+                                                 self.loopTime + self.rng.standard_normal() * self.loopSpread,
                                                  self.MAX_LOOP_TIME)
             self.lastLoop = time.time()
 
         else:
             # find the shade of the color using a linear seesaw
-            color = (1-0.3*(1-abs(t-self.LOOP_TIME/2)/(self.LOOP_TIME/2)))*color
+            color = (1-0.3*(1-abs(t-self.loopTime/2)/(self.loopTime/2)))*color
         self.image.fill(color)
 
     # switch powerup type
     def switchTo(self, type):
         self.type = type
         self.duration = self.DEFAULT_DURATION
+        self.loopTime = self.DEFAULT_LOOP_TIME
+        self.loopSpread = self.DEFAULT_LOOP_SPREAD
 
         if type == PowerupType.SPEED_BOOST:
             self.color = colors.GREEN
@@ -265,9 +268,12 @@ class Powerup(pygame.sprite.Sprite):
             self.duration = 2 * self.DEFAULT_DURATION
         elif type == PowerupType.REVERSER:
             self.color = colors.RED
+            self.loopTime = self.DEFAULT_LOOP_TIME / 2  # half as likely
+            self.loopSpread = self.DEFAULT_LOOP_SPREAD / 2
         elif type == PowerupType.CONTROLLED_BOOST:
             self.color = colors.ORANGE
             self.duration = self.DEFAULT_DURATION / 2
+            self.loopTime = self.DEFAULT_LOOP_TIME * 0.8
         else:
             raise Exception("Invalid powerup!")
 

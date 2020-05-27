@@ -148,7 +148,7 @@ class Car(pygame.sprite.Sprite):
         dr = dest - self.pos()
         self.angle = dr.angle()  # angle in radians
 
-        if self.hasPower(PowerupType.REVERSER):
+        if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = -1
         else:
             self.acceleration = 1
@@ -159,7 +159,7 @@ class Car(pygame.sprite.Sprite):
         dr = point - self.pos()
         self.angle = dr.angle()  # angle in radians
 
-        if self.hasPower(PowerupType.REVERSER):
+        if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = 1
         else:
             self.acceleration = -1
@@ -198,6 +198,10 @@ class Car(pygame.sprite.Sprite):
     def givePower(self, power):
         self.power = power
         if power.type == PowerupType.SLOWDOWN:
+            self.activatePower()
+        elif power.type == PowerupType.REVERSER:
+            self.activatePower()
+        elif power.type == PowerupType.SPEED_BOOST:
             self.activatePower()
 
     # removes power from car
@@ -294,13 +298,43 @@ class Barrier(pygame.sprite.Sprite):
 
 
 class Checkpoint(pygame.sprite.Sprite):
-    def __init__(self, pos, width, height):
+    POWERUP_INTERVAL = 5
+
+    def __init__(self, pos, width, height, generatesPowerups=False):
         pygame.sprite.Sprite.__init__(self)
+
+        # Random Number Generator
+        self.rng = np.random.default_rng()
 
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = pos
         self.image = pygame.Surface([width, height])
         # self.image.fill(colors.YELLOW) # uncomment to debug
+        self.generatesPowerups = generatesPowerups
+        self.powerup = None
+        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_INTERVAL)
+        self.lastUpdateTime = time.time()
+
+    def update(self):
+        if self.generatesPowerups and self.powerup is None:
+            if self.timeUntilGeneration <= 0:
+                self.generatePowerup()
+            else:
+                now = time.time()
+                self.timeUntilGeneration = self.timeUntilGeneration - (now - self.lastUpdateTime)
+                self.lastUpdateTime = now
+
+    # pops the stored powerup
+    def getPowerup(self):
+        powerup = self.powerup
+        self.powerup = None
+        return powerup
+
+    # generates a powerup
+    def generatePowerup(self):
+        self.powerup = Powerup(self.rect.center,
+                               PowerupType(int(self.rng.random() * PowerupType.NUMBER_POWERUPS.value)))
+        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_INTERVAL)
 
 
 class FinishLine(Checkpoint):

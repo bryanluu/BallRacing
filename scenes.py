@@ -205,8 +205,6 @@ class DrivingScene(SceneBase):
         self.cars.add(self.player)
 
         self.powerups = pygame.sprite.Group()
-        powerup = Powerup([50, 50], PowerupType.CONTROLLED_BOOST)
-        self.powerups.add(powerup)
 
         self.terrain = pygame.sprite.Group()
         mid_grass = Grass((screenWidth // 2, screenHeight // 2),
@@ -219,22 +217,22 @@ class DrivingScene(SceneBase):
         checkpointTopLeft = Checkpoint((0.125 * screenWidth / 2,
                                         0.125 * screenHeight / 2),
                                        0.125 * screenWidth,
-                                       0.125 * screenHeight)
+                                       0.125 * screenHeight, True)
         self.terrain.add(checkpointTopLeft)
         checkpointTopRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
                                         0.125 * screenHeight / 2),
                                         0.125 * screenWidth,
-                                        0.125 * screenHeight)
+                                        0.125 * screenHeight, False)
         self.terrain.add(checkpointTopRight)
         checkpointBottomRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
                                            screenHeight - 0.125 * screenHeight / 2),
                                            0.125 * screenWidth,
-                                           0.125 * screenHeight)
+                                           0.125 * screenHeight, True)
         self.terrain.add(checkpointBottomRight)
         checkpointBottomLeft = Checkpoint((0.125 * screenWidth / 2,
                                           screenHeight - 0.125 * screenHeight / 2),
                                           0.125 * screenWidth,
-                                          0.125 * screenHeight)
+                                          0.125 * screenHeight, False)
         self.terrain.add(checkpointBottomLeft)
         finishline = FinishLine((0.125 * screenWidth / 2,
                                 screenHeight / 2),
@@ -277,6 +275,7 @@ class DrivingScene(SceneBase):
         else:
             self.player.idle()
 
+        self.getPowerupsFromCheckpoints()
 
         for car in self.cars:
             # Powerups collision
@@ -388,6 +387,19 @@ class DrivingScene(SceneBase):
             if(checkpointIndex == 0):
                 car.laps += 1
             car.checkpoint = checkpointIndex
+
+    def getPowerupsFromCheckpoints(self):
+        for checkpoint in self.checkpoints:
+            powerupsInside = pygame.sprite.spritecollide(checkpoint,
+                                                         self.powerups,
+                                                         False,
+                                                         collided=pygame.sprite.collide_rect)
+            # only add it if there's not already one inside
+            if len(powerupsInside) == 0:
+                # adds the generated powerup if available
+                powerup = checkpoint.getPowerup()
+                if powerup:
+                    self.powerups.add(powerup)
 
 
 class CopterScene(SceneBase):

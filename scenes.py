@@ -131,7 +131,6 @@ class Pause(SceneBase):
         self.next = self
         self.paused = paused
         self.options = ["Resume", "Quit"]
-        self.buttons = pygame.sprite.Group()
 
     # only needs to be called once throughout main loop
     def initGraphics(self, screen):
@@ -143,7 +142,8 @@ class Pause(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         for i, option in enumerate(self.options):
-            rect = pygame.Rect(int(screenWidth/2) - 50, int(screenHeight/2) + i*50, 100, 30)
+            rect = pygame.Rect(int(screenWidth / 2) - 50,
+                               int(screenHeight / 2) + i * 50, 100, 30)
             passive_color = colors.BLACK
             active_color = colors.RED
 
@@ -189,9 +189,13 @@ class Pause(SceneBase):
 
 class DrivingScene(SceneBase):
     LAP_LIMIT = 3
+    SAVE_FILE = "racing-time.save"
 
     def __init__(self):
         SceneBase.__init__(self)
+        self.bestTime = self.loadScore(self.SAVE_FILE)
+        self.finished = False
+        self.startTime = time.time()
 
     # only needs to be called once throughout main loop
     def initGraphics(self, screen):
@@ -244,6 +248,14 @@ class DrivingScene(SceneBase):
                             checkpointBottomRight, checkpointBottomLeft]
 
         self.lapText = pygame.font.Font('freesansbold.ttf', 20)
+        self.timeText = pygame.font.Font('freesansbold.ttf', 20)
+
+        buttonRect = pygame.Rect(int(screenWidth / 2) - 50,
+                          int(screenHeight / 2) + 100, 100, 30)
+        buttonFont = pygame.font.Font('freesansbold.ttf', 20)
+        def action():
+            self.SwitchToScene(Start())
+        self.quitButton = Button(buttonRect, action, buttonFont, colors.RED, "Quit", colors.WHITE, colors.BLACK, "Quit", colors.WHITE)
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -267,13 +279,16 @@ class DrivingScene(SceneBase):
 
         mousePos = geo.Vector2D(*mouse)
 
-        # follow mouse drag
-        if click[0]: # left click
-            self.player.driveTowards(mousePos)
-        elif click[2]: # right click
-            self.player.driveAwayFrom(mousePos)
+        if not self.finished:
+            # follow mouse drag
+            if click[0]: # left click
+                self.player.driveTowards(mousePos)
+            elif click[2]: # right click
+                self.player.driveAwayFrom(mousePos)
+            else:
+                self.player.idle()
         else:
-            self.player.idle()
+            self.quitButton.update()
 
         self.getPowerupsFromCheckpoints()
 
@@ -294,15 +309,15 @@ class DrivingScene(SceneBase):
             car.slowed = False  # by default, Car isn't slowed
             for terrain in terrainHit:
                 if issubclass(type(terrain), Checkpoint):
-                    self.checkCheckpoints(car, terrain)
+                    if not self.finished:
+                        self.checkCheckpoints(car, terrain)
                 elif type(terrain) is Grass:
                     car.slowed = True
                 elif type(terrain) is Barrier:
                     self.checkBarrierCollision(car, terrain)
 
             if car.laps == self.LAP_LIMIT:
-                print("You finished!")
-                self.SwitchToScene(Start())
+                self.Finish()
 
         self.powerups.update()
         self.cars.update()
@@ -319,11 +334,18 @@ class DrivingScene(SceneBase):
         for car in self.cars:
             car.draw(self.screen)
 
-        lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
-                                      True, colors.WHITE)
-        lapRect = lapSurf.get_rect()
-        lapRect.center = screenWidth / 2, screenHeight / 2
-        self.screen.blit(lapSurf, lapRect)
+        if not self.finished:
+            lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
+                                          True, colors.WHITE)
+            lapRect = lapSurf.get_rect()
+            lapRect.center = screenWidth / 2, screenHeight / 2
+            self.screen.blit(lapSurf, lapRect)
+        else:
+            timeSurf = self.timeText.render("Best-time: {0} seconds".format(self.bestTime), True, colors.WHITE)
+            timeRect = timeSurf.get_rect()
+            timeRect.center = screenWidth / 2, screenHeight / 2
+            self.screen.blit(timeSurf, timeRect)
+            self.screen.blit(self.quitButton.image, self.quitButton.rect)
 
         self.drawCrossHairs()
 
@@ -401,15 +423,37 @@ class DrivingScene(SceneBase):
                 if powerup:
                     self.powerups.add(powerup)
 
+    def saveScore(self, filename):
+        with open(filename, 'w') as f:
+            f.write("Best-time,{0:.2f}".format(self.bestTime))
+
+    def loadScore(self, filename):
+        try:
+            with open(filename, 'r') as f:
+                scoreline = f.readline()
+                score = scoreline.split(',')[1]
+        except (OSError, IndexError):
+            score = np.inf
+
+        return float(score)
+
+    def Finish(self):
+        self.finished = True
+        timeElapsed = time.time() - self.startTime
+        if timeElapsed < self.bestTime:
+            self.bestTime = timeElapsed
+            self.saveScore(self.SAVE_FILE)
+
 
 class CopterScene(SceneBase):
-    GAP_FRACTION = 0.7 # the starting fraction of gap space
-    GAP_CLEARANCE = 0.05 # how much clearance the gap has between screen borders
-    FLUCTUATION = 3 # how much the gap position fluctuates
-    NARROWING_INTERVAL = 5 # how long before the gap narrows
-    FLUCTUATION_INTERVAL = 5 # how long before gap increases fluctuation
-    MAX_FLUCTUATION = 15 # maximum amount of fluctuation
-    BAT_RESPAWN_TIME = 10 # interval between bats
+    GAP_FRACTION = 0.7  # the starting fraction of gap space
+    GAP_CLEARANCE = 0.05  # how much clearance gap has between screen borders
+    FLUCTUATION = 3  # how much the gap position fluctuates
+    NARROWING_INTERVAL = 5  # how long before the gap narrows
+    FLUCTUATION_INTERVAL = 5  # how long before gap increases fluctuation
+    MAX_FLUCTUATION = 15  # maximum amount of fluctuation
+    BAT_RESPAWN_TIME = 10  # interval between bats
+    SAVE_FILE = 'copter-score.save'  # save file name
 
 
     def __init__(self):
@@ -421,7 +465,7 @@ class CopterScene(SceneBase):
         self.starttime = time.time()
         self.lastnarrow = self.starttime
         self.lastfluct = self.starttime
-        self.highscore = self.loadScore('score.save')
+        self.highscore = self.loadScore(self.SAVE_FILE)
         self.projectiles = pygame.sprite.Group()
         self.obstacles = pygame.sprite.Group()
         self.score = 0
@@ -455,6 +499,9 @@ class CopterScene(SceneBase):
         click = pygame.mouse.get_pressed()
         spacebar = pygame.key.get_pressed()[pygame.K_SPACE]
         self.score = time.time() - self.starttime
+
+        if self.score > self.highscore:
+            self.highscore = self.score
 
         # check if spacebar
         self.fly = spacebar
@@ -549,19 +596,19 @@ class CopterScene(SceneBase):
 
     def EndGame(self):
         if self.score > self.highscore:
-                self.saveScore('score.save')
+            self.saveScore(self.SAVE_FILE)
         self.SwitchToScene(Start())
 
     def saveScore(self, filename):
         with open(filename, 'w') as f:
-            f.write("High-score,{0:.2f}".format(time.time()-self.starttime))
+            f.write("High-score,{0:.2f}".format(time.time() - self.starttime))
 
     def loadScore(self, filename):
         try:
             with open(filename, 'r') as f:
                 scoreline = f.readline()
                 score = scoreline.split(',')[1]
-        except:
+        except (OSError, IndexError):
             score = 0
             print("No save data found.")
 

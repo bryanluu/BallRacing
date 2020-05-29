@@ -31,7 +31,7 @@ class Car(pygame.sprite.Sprite):
     RANDOM_SPREAD = 3
     TRAIL_LENGTH = 10
 
-    def __init__(self, pos, color):
+    def __init__(self, pos, color, isCPU=False):
         pygame.sprite.Sprite.__init__(self)
 
         # initialize RNG for randomizer
@@ -43,6 +43,8 @@ class Car(pygame.sprite.Sprite):
         self.image = pygame.Surface([20, 20])
         self.image.fill(color)
         self.color = color
+
+        self.isCPU = isCPU  # whether the car is computer controlled
 
         self.angle = 0
         self.speed = 0

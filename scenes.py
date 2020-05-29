@@ -190,6 +190,7 @@ class Pause(SceneBase):
 class DrivingScene(SceneBase):
     LAP_LIMIT = 3
     SAVE_FILE = "racing-time.save"
+    CPU_COLLISION_RADIUS = 20
 
     def __init__(self):
         SceneBase.__init__(self)
@@ -288,6 +289,10 @@ class DrivingScene(SceneBase):
             else:
                 self.player.idle()
         else:
+            nextCheckpointIndex = (self.player.checkpoint + 1)\
+                % len(self.checkpoints)
+            nextCheckpoint = self.checkpoints[nextCheckpointIndex]
+            self.player.driveTowards(geo.Vector2D(*nextCheckpoint.rect.center))
             self.quitButton.update()
 
         self.getPowerupsFromCheckpoints()
@@ -303,14 +308,26 @@ class DrivingScene(SceneBase):
             self.checkOutOfBounds(car, screenWidth, screenHeight)
 
             # Terrain collision
-            terrainHit = pygame.sprite.spritecollide(car, self.terrain, False,
-                                                     collided=pygame.sprite.collide_rect)
+            if car.isCPU:
+                # check is car is within radius of checkpoint's center
+                def collideCPU(car, checkpoint):
+                    carPos = geo.Vector2D(*car.rect.center)
+                    checkpointPos = geo.Vector2D(*checkpoint.rect.center)
+                    dr = checkpointPos - carPos
+                    return dr.length() <= self.CPU_COLLISION_RADIUS
+                # Check for collision of smaller rects if CPU controlled
+                terrainHit = pygame.sprite.spritecollide(car, self.terrain,
+                                                         False,
+                                                         collided=collideCPU)
+            else:
+                terrainHit = pygame.sprite.spritecollide(car, self.terrain,
+                                                         False,
+                                                         collided=pygame.sprite.collide_rect)
 
             car.slowed = False  # by default, Car isn't slowed
             for terrain in terrainHit:
                 if issubclass(type(terrain), Checkpoint):
-                    if not self.finished:
-                        self.checkCheckpoints(car, terrain)
+                    self.checkCheckpoints(car, terrain)
                 elif type(terrain) is Grass:
                     car.slowed = True
                 elif type(terrain) is Barrier:
@@ -340,6 +357,8 @@ class DrivingScene(SceneBase):
             lapRect = lapSurf.get_rect()
             lapRect.center = screenWidth / 2, screenHeight / 2
             self.screen.blit(lapSurf, lapRect)
+
+            self.drawCrossHairs()
         else:
             timeSurf = self.timeText.render("Best-time: {0} seconds".format(self.bestTime), True, colors.WHITE)
             timeRect = timeSurf.get_rect()
@@ -347,7 +366,6 @@ class DrivingScene(SceneBase):
             self.screen.blit(timeSurf, timeRect)
             self.screen.blit(self.quitButton.image, self.quitButton.rect)
 
-        self.drawCrossHairs()
 
         pygame.display.flip()
 
@@ -406,7 +424,7 @@ class DrivingScene(SceneBase):
         # check that this terrain checkpoint is the correct checkpoint
         if car.checkpoint == lastCheckpointIndex:
             # if start is reached correctly
-            if(checkpointIndex == 0):
+            if(not self.finished and checkpointIndex == 0):
                 car.laps += 1
             car.checkpoint = checkpointIndex
 
@@ -439,6 +457,7 @@ class DrivingScene(SceneBase):
 
     def Finish(self):
         self.finished = True
+        self.player.isCPU = True
         timeElapsed = time.time() - self.startTime
         if timeElapsed < self.bestTime:
             self.bestTime = timeElapsed

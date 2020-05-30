@@ -188,12 +188,16 @@ class Pause(SceneBase):
 
 
 class DrivingScene(SceneBase):
-    LAP_LIMIT = 3
-    SAVE_FILE = "racing-time.save"
-    CPU_COLLISION_RADIUS = 20
+    LAP_LIMIT = 3  # number of laps to complete game
+    SAVE_FILE = "racing-time.save"  # save location
+    CPU_COLLISION_RADIUS = 20  # CPU collision radius
+    CPU_TARGET_RADIUS = 10  # CPU target radius to randomize over
 
     def __init__(self):
         SceneBase.__init__(self)
+        # initialize RNG
+        self.rng = np.random.default_rng()
+
         self.bestTime = self.loadScore(self.SAVE_FILE)
         self.finished = False
         self.startTime = time.time()
@@ -282,9 +286,9 @@ class DrivingScene(SceneBase):
 
         if not self.finished:
             # follow mouse drag
-            if click[0]: # left click
+            if click[0]:  # left click
                 self.player.driveTowards(mousePos)
-            elif click[2]: # right click
+            elif click[2]:  # right click
                 self.player.driveAwayFrom(mousePos)
             else:
                 self.player.idle()
@@ -292,10 +296,21 @@ class DrivingScene(SceneBase):
             nextCheckpointIndex = (self.player.checkpoint + 1)\
                 % len(self.checkpoints)
             nextCheckpoint = self.checkpoints[nextCheckpointIndex]
-            self.player.driveTowards(geo.Vector2D(*nextCheckpoint.rect.center))
+            # randomize target around a circle
+            target = geo.Vector2D(*nextCheckpoint.rect.center)
+            target += geo.Vector2D.create_from_angle(self.rng.random() * 2 * np.pi,
+                                                     self.rng.random() * self.CPU_TARGET_RADIUS)
+            self.player.driveTowards(target)
             self.quitButton.update()
 
         self.getPowerupsFromCheckpoints()
+
+        # check is car is within radius of checkpoint's center
+        def collideCPU(car, checkpoint):
+            carPos = geo.Vector2D(*car.rect.center)
+            checkpointPos = geo.Vector2D(*checkpoint.rect.center)
+            dr = checkpointPos - carPos
+            return dr.length() <= self.CPU_COLLISION_RADIUS
 
         for car in self.cars:
             # Powerups collision
@@ -309,13 +324,7 @@ class DrivingScene(SceneBase):
 
             # Terrain collision
             if car.isCPU:
-                # check is car is within radius of checkpoint's center
-                def collideCPU(car, checkpoint):
-                    carPos = geo.Vector2D(*car.rect.center)
-                    checkpointPos = geo.Vector2D(*checkpoint.rect.center)
-                    dr = checkpointPos - carPos
-                    return dr.length() <= self.CPU_COLLISION_RADIUS
-                # Check for collision of smaller rects if CPU controlled
+                # Check for smaller collision if CPU controlled
                 terrainHit = pygame.sprite.spritecollide(car, self.terrain,
                                                          False,
                                                          collided=collideCPU)
@@ -365,7 +374,6 @@ class DrivingScene(SceneBase):
             timeRect.center = screenWidth / 2, screenHeight / 2
             self.screen.blit(timeSurf, timeRect)
             self.screen.blit(self.quitButton.image, self.quitButton.rect)
-
 
         pygame.display.flip()
 

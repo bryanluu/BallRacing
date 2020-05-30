@@ -306,7 +306,8 @@ class Barrier(pygame.sprite.Sprite):
 
 
 class Checkpoint(pygame.sprite.Sprite):
-    POWERUP_INTERVAL = 5
+    POWERUP_SPAWN_INTERVAL = 5  # mean time between powerup spawns
+    POWERUP_SPAWN_RADIUS = 20  # max radius to spawn powerups over
 
     def __init__(self, pos, width, height, generatesPowerups=False):
         pygame.sprite.Sprite.__init__(self)
@@ -320,7 +321,7 @@ class Checkpoint(pygame.sprite.Sprite):
         # self.image.fill(colors.YELLOW) # uncomment to debug
         self.generatesPowerups = generatesPowerups
         self.powerup = None
-        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_INTERVAL)
+        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_SPAWN_INTERVAL)
         self.lastUpdateTime = time.time()
 
     def update(self):
@@ -340,9 +341,12 @@ class Checkpoint(pygame.sprite.Sprite):
 
     # generates a powerup
     def generatePowerup(self):
-        self.powerup = Powerup(self.rect.center,
+        spawnPoint = geo.Vector2D(*self.rect.center)
+        spawnPoint += geo.Vector2D.create_from_angle(self.rng.random() * 2 * np.pi,
+                                                     self.rng.random() * self.POWERUP_SPAWN_RADIUS)
+        self.powerup = Powerup(spawnPoint.tuple(),
                                PowerupType(int(self.rng.random() * PowerupType.NUMBER_POWERUPS.value)))
-        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_INTERVAL)
+        self.timeUntilGeneration = self.rng.exponential(self.POWERUP_SPAWN_INTERVAL)
 
 
 class FinishLine(Checkpoint):

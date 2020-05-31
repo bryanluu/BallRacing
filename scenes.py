@@ -212,6 +212,8 @@ class DrivingScene(SceneBase):
         self.cars = pygame.sprite.Group()
         self.player = Car((10, screenHeight / 2), colors.RED)
         self.cars.add(self.player)
+        cpu = Car((50, screenHeight / 2), colors.BLUE, isCPU=True)
+        self.cars.add(cpu)
 
         self.powerups = pygame.sprite.Group()
 
@@ -284,25 +286,6 @@ class DrivingScene(SceneBase):
 
         mousePos = geo.Vector2D(*mouse)
 
-        if not self.finished:
-            # follow mouse drag
-            if click[0]:  # left click
-                self.player.driveTowards(mousePos)
-            elif click[2]:  # right click
-                self.player.driveAwayFrom(mousePos)
-            else:
-                self.player.idle()
-        else:
-            nextCheckpointIndex = (self.player.checkpoint + 1)\
-                % len(self.checkpoints)
-            nextCheckpoint = self.checkpoints[nextCheckpointIndex]
-            # randomize target around a circle
-            target = geo.Vector2D(*nextCheckpoint.rect.center)
-            target += geo.Vector2D.create_from_angle(self.rng.random() * 2 * np.pi,
-                                                     self.rng.random() * self.CPU_TARGET_RADIUS)
-            self.player.driveTowards(target)
-            self.quitButton.update()
-
         self.getPowerupsFromCheckpoints()
 
         # check is car is within radius of checkpoint's center
@@ -313,6 +296,36 @@ class DrivingScene(SceneBase):
             return dr.length() <= self.CPU_COLLISION_RADIUS
 
         for car in self.cars:
+            if car == self.player:
+                if not self.finished:
+                    # follow mouse drag
+                    if click[0]:  # left click
+                        self.player.driveTowards(mousePos)
+                    elif click[2]:  # right click
+                        self.player.driveAwayFrom(mousePos)
+                    else:
+                        self.player.idle()
+                else:
+                    nextCheckpointIndex = (self.player.checkpoint + 1)\
+                        % len(self.checkpoints)
+                    nextCheckpoint = self.checkpoints[nextCheckpointIndex]
+                    # randomize target around a circle
+                    target = geo.Vector2D(*nextCheckpoint.rect.center)
+                    target += geo.Vector2D.create_from_angle(self.rng.random() * 2 * np.pi,
+                                                             self.rng.random() * self.CPU_TARGET_RADIUS)
+                    self.player.driveTowards(target)
+                    self.quitButton.update()
+            else:
+                nextCheckpointIndex = (car.checkpoint + 1)\
+                    % len(self.checkpoints)
+                nextCheckpoint = self.checkpoints[nextCheckpointIndex]
+                # randomize target around a circle
+                target = geo.Vector2D(*nextCheckpoint.rect.center)
+                target += geo.Vector2D.create_from_angle(self.rng.random() * 2 * np.pi,
+                                                         self.rng.random() * self.CPU_TARGET_RADIUS)
+                car.driveTowards(target)
+                self.quitButton.update()
+
             # Powerups collision
             powerupsHit = pygame.sprite.spritecollide(car,
                                                       self.powerups, True,
@@ -342,7 +355,7 @@ class DrivingScene(SceneBase):
                 elif type(terrain) is Barrier:
                     self.checkBarrierCollision(car, terrain)
 
-            if car.laps == self.LAP_LIMIT:
+        if self.player.laps == self.LAP_LIMIT:
                 self.Finish()
 
         self.powerups.update()

@@ -199,7 +199,9 @@ class Car(pygame.sprite.Sprite):
     # gives power to car
     def givePower(self, power):
         self.power = power
-        if power.type == PowerupType.SLOWDOWN:
+        if self.isCPU:
+            self.activatePower()
+        elif power.type == PowerupType.SLOWDOWN:
             self.activatePower()
         elif power.type == PowerupType.REVERSER:
             self.activatePower()

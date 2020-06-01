@@ -258,10 +258,12 @@ class DrivingScene(SceneBase):
         self.timeText = pygame.font.Font('freesansbold.ttf', 20)
 
         buttonRect = pygame.Rect(int(screenWidth / 2) - 50,
-                          int(screenHeight / 2) + 100, 100, 30)
+                                 int(screenHeight / 2) + 100, 100, 30)
         buttonFont = pygame.font.Font('freesansbold.ttf', 20)
+
         def action():
             self.SwitchToScene(Start())
+
         self.quitButton = Button(buttonRect, action, buttonFont, colors.RED, "Quit", colors.WHITE, colors.BLACK, "Quit", colors.WHITE)
 
     def ProcessInput(self, events, pressed_keys):
@@ -374,6 +376,7 @@ class DrivingScene(SceneBase):
             car.draw(self.screen)
 
         if not self.finished:
+            self.timeElapsed = time.time() - self.startTime
             lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
                                           True, colors.WHITE)
             lapRect = lapSurf.get_rect()
@@ -382,11 +385,16 @@ class DrivingScene(SceneBase):
 
             self.drawCrossHairs()
         else:
-            timeSurf = self.timeText.render("Best-time: {0} seconds".format(self.bestTime), True, colors.WHITE)
+            timeSurf = self.timeText.render("Best-time: {0:.3f} seconds".format(self.bestTime), True, colors.WHITE)
             timeRect = timeSurf.get_rect()
             timeRect.center = screenWidth / 2, screenHeight / 2
             self.screen.blit(timeSurf, timeRect)
             self.screen.blit(self.quitButton.image, self.quitButton.rect)
+
+        timeSurf = self.timeText.render("Time: {0:.3f} seconds".format(self.timeElapsed), True, colors.WHITE)
+        timeRect = timeSurf.get_rect()
+        timeRect.center = screenWidth / 2, screenHeight / 2 - 50
+        self.screen.blit(timeSurf, timeRect)
 
         pygame.display.flip()
 
@@ -464,7 +472,7 @@ class DrivingScene(SceneBase):
 
     def saveScore(self, filename):
         with open(filename, 'w') as f:
-            f.write("Best-time,{0:.2f}".format(self.bestTime))
+            f.write("Best-time,{0:.3f}".format(self.bestTime))
 
     def loadScore(self, filename):
         try:
@@ -479,8 +487,7 @@ class DrivingScene(SceneBase):
     def Finish(self):
         self.finished = True
         self.player.isCPU = True
-        timeElapsed = time.time() - self.startTime
-        if timeElapsed < self.bestTime:
+        if self.timeElapsed < self.bestTime:
             self.bestTime = timeElapsed
             self.saveScore(self.SAVE_FILE)
 

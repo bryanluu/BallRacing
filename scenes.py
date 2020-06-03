@@ -199,7 +199,7 @@ class DrivingScene(SceneBase):
         self.rng = np.random.default_rng()
 
         self.bestTime = self.loadScore(self.SAVE_FILE)
-        self.finished = False
+        self.finished = []  # cars that finished by rank
         self.startTime = time.time()
 
     # only needs to be called once throughout main loop
@@ -256,6 +256,7 @@ class DrivingScene(SceneBase):
 
         self.lapText = pygame.font.Font('freesansbold.ttf', 20)
         self.timeText = pygame.font.Font('freesansbold.ttf', 20)
+        self.rankText = pygame.font.Font('freesansbold.ttf', 20)
 
         buttonRect = pygame.Rect(int(screenWidth / 2) - 50,
                                  int(screenHeight / 2) + 100, 100, 30)
@@ -324,8 +325,11 @@ class DrivingScene(SceneBase):
                 elif type(terrain) is Barrier:
                     self.checkBarrierCollision(car, terrain)
 
-        if self.player.laps == self.LAP_LIMIT:
-                self.Finish()
+            if car not in self.finished  and car.laps == self.LAP_LIMIT:
+                if car == self.player:
+                    self.Finish()
+
+                self.finished.append(car)
 
         self.powerups.update()
         self.cars.update()
@@ -342,7 +346,7 @@ class DrivingScene(SceneBase):
         for car in self.cars:
             car.draw(self.screen)
 
-        if not self.finished:
+        if self.player not in self.finished:
             self.timeElapsed = time.time() - self.startTime
             lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
                                           True, colors.WHITE)
@@ -356,6 +360,13 @@ class DrivingScene(SceneBase):
             timeRect = timeSurf.get_rect()
             timeRect.center = screenWidth / 2, screenHeight / 2
             self.screen.blit(timeSurf, timeRect)
+
+            rank = self.finished.index(self.player)+1
+            rankSurf = self.rankText.render("Rank: {0}".format(rank), True, colors.WHITE)
+            rankRect = rankSurf.get_rect()
+            rankRect.center = screenWidth / 2, screenHeight / 2 + 50
+            self.screen.blit(rankSurf, rankRect)
+
             self.screen.blit(self.quitButton.image, self.quitButton.rect)
 
         timeSurf = self.timeText.render("Time: {0:.3f} seconds".format(self.timeElapsed), True, colors.WHITE)
@@ -420,7 +431,7 @@ class DrivingScene(SceneBase):
         # check that this terrain checkpoint is the correct checkpoint
         if car.checkpoint == lastCheckpointIndex:
             # if start is reached correctly
-            if(not self.finished and checkpointIndex == 0):
+            if(car.laps < self.LAP_LIMIT and checkpointIndex == 0):
                 car.laps += 1
             car.checkpoint = checkpointIndex
 
@@ -438,7 +449,7 @@ class DrivingScene(SceneBase):
                     self.powerups.add(powerup)
 
     def setNextCheckpoint(self, car):
-        if not self.finished and car == self.player:
+        if self.player not in self.finished and car == self.player:
             mouse = pygame.mouse.get_pos()
             click = pygame.mouse.get_pressed()
             mousePos = geo.Vector2D(*mouse)
@@ -476,7 +487,6 @@ class DrivingScene(SceneBase):
         return float(score)
 
     def Finish(self):
-        self.finished = True
         self.player.isCPU = True
         if self.timeElapsed < self.bestTime:
             self.bestTime = timeElapsed

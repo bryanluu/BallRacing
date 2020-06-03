@@ -214,14 +214,15 @@ class DrivingScene(SceneBase):
         self.cars.add(self.player)
         cpu = Car((50, screenHeight / 2), colors.BLUE, isCPU=True)
         self.cars.add(cpu)
+        self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
         self.powerups = pygame.sprite.Group()
 
         self.terrain = pygame.sprite.Group()
-        mid_grass = Grass((screenWidth // 2, screenHeight // 2),
+        mid_grass = Grass((screenWidth / 2, screenHeight / 2),
                           0.8 * screenWidth, 0.8 * screenHeight)
         self.terrain.add(mid_grass)
-        mid_barrier = Barrier((screenWidth // 2, screenHeight // 2),
+        mid_barrier = Barrier((screenWidth / 2, screenHeight / 2),
                               0.75 * screenWidth, 0.75 * screenHeight)
         self.terrain.add(mid_barrier)
 
@@ -266,6 +267,15 @@ class DrivingScene(SceneBase):
             self.SwitchToScene(Start())
 
         self.quitButton = Button(buttonRect, action, buttonFont, colors.RED, "Quit", colors.WHITE, colors.BLACK, "Quit", colors.WHITE)
+
+    def spaceoutCars(self, lb, ub, horizontal=True):
+        ncars = len(self.cars)
+        for i, car in enumerate(self.cars):
+            newpos = lb+(i+1)*(ub-lb)/(ncars+1)
+            if horizontal:
+                car.rect.left = newpos - car.rect.width/2
+            else:
+                car.rect.top = newpos - car.rect.height/2
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:

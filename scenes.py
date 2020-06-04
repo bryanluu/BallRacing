@@ -192,12 +192,14 @@ class DrivingScene(SceneBase):
     SAVE_FILE = "racing-time.save"  # save location
     CPU_COLLISION_RADIUS = 20  # CPU collision radius
     CPU_TARGET_RADIUS = 10  # CPU target radius to randomize over
+    START_COUNTDOWN = 3  # countdown before starting
 
     def __init__(self):
         SceneBase.__init__(self)
         # initialize RNG
         self.rng = np.random.default_rng()
 
+        self.started = False  # whether race has begun
         self.bestTime = self.loadScore(self.SAVE_FILE)
         self.finished = []  # cars that finished by rank
         self.startTime = time.time()
@@ -213,6 +215,10 @@ class DrivingScene(SceneBase):
         self.player = Car((10, screenHeight / 2), colors.RED)
         self.cars.add(self.player)
         cpu = Car((50, screenHeight / 2), colors.BLUE, isCPU=True)
+        self.cars.add(cpu)
+        cpu = Car((50, screenHeight / 2), colors.GREEN, isCPU=True)
+        self.cars.add(cpu)
+        cpu = Car((50, screenHeight / 2), colors.YELLOW, isCPU=True)
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
@@ -258,6 +264,7 @@ class DrivingScene(SceneBase):
         self.lapText = pygame.font.Font('freesansbold.ttf', 20)
         self.timeText = pygame.font.Font('freesansbold.ttf', 20)
         self.rankText = pygame.font.Font('freesansbold.ttf', 20)
+        self.startText = pygame.font.Font('freesansbold.ttf', 20)
 
         buttonRect = pygame.Rect(int(screenWidth / 2) - 50,
                                  int(screenHeight / 2) + 100, 100, 30)
@@ -293,6 +300,12 @@ class DrivingScene(SceneBase):
     def Update(self):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
+
+        if not self.started:
+            if time.time() - self.startTime > self.START_COUNTDOWN:
+                self.started = True
+                self.startTime = time.time()
+            return
 
         self.getPowerupsFromCheckpoints()
 
@@ -356,33 +369,42 @@ class DrivingScene(SceneBase):
         for car in self.cars:
             car.draw(self.screen)
 
-        if self.player not in self.finished:
-            self.timeElapsed = time.time() - self.startTime
-            lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
-                                          True, colors.WHITE)
-            lapRect = lapSurf.get_rect()
-            lapRect.center = screenWidth / 2, screenHeight / 2
-            self.screen.blit(lapSurf, lapRect)
-
-            self.drawCrossHairs()
-        else:
-            timeSurf = self.timeText.render("Best-time: {0:.3f} seconds".format(self.bestTime), True, colors.WHITE)
+        if not self.started:
+            timeElapsed = time.time() - self.startTime
+            timeLeft = self.START_COUNTDOWN - timeElapsed
+            timeSurf = self.startText.render("Countdown: {0:.0f}".format(np.ceil(timeLeft)),
+                                             True, colors.WHITE)
             timeRect = timeSurf.get_rect()
             timeRect.center = screenWidth / 2, screenHeight / 2
             self.screen.blit(timeSurf, timeRect)
+        else:
+            if self.player not in self.finished:
+                self.timeElapsed = time.time() - self.startTime
+                lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
+                                              True, colors.WHITE)
+                lapRect = lapSurf.get_rect()
+                lapRect.center = screenWidth / 2, screenHeight / 2
+                self.screen.blit(lapSurf, lapRect)
 
-            rank = self.finished.index(self.player)+1
-            rankSurf = self.rankText.render("Rank: {0}".format(rank), True, colors.WHITE)
-            rankRect = rankSurf.get_rect()
-            rankRect.center = screenWidth / 2, screenHeight / 2 + 50
-            self.screen.blit(rankSurf, rankRect)
+                self.drawCrossHairs()
+            else:
+                timeSurf = self.timeText.render("Best-time: {0:.3f} seconds".format(self.bestTime), True, colors.WHITE)
+                timeRect = timeSurf.get_rect()
+                timeRect.center = screenWidth / 2, screenHeight / 2
+                self.screen.blit(timeSurf, timeRect)
 
-            self.screen.blit(self.quitButton.image, self.quitButton.rect)
+                rank = self.finished.index(self.player)+1
+                rankSurf = self.rankText.render("Rank: {0}".format(rank), True, colors.WHITE)
+                rankRect = rankSurf.get_rect()
+                rankRect.center = screenWidth / 2, screenHeight / 2 + 50
+                self.screen.blit(rankSurf, rankRect)
 
-        timeSurf = self.timeText.render("Time: {0:.3f} seconds".format(self.timeElapsed), True, colors.WHITE)
-        timeRect = timeSurf.get_rect()
-        timeRect.center = screenWidth / 2, screenHeight / 2 - 50
-        self.screen.blit(timeSurf, timeRect)
+                self.screen.blit(self.quitButton.image, self.quitButton.rect)
+
+            timeSurf = self.timeText.render("Time: {0:.3f} seconds".format(self.timeElapsed), True, colors.WHITE)
+            timeRect = timeSurf.get_rect()
+            timeRect.center = screenWidth / 2, screenHeight / 2 - 50
+            self.screen.blit(timeSurf, timeRect)
 
         pygame.display.flip()
 

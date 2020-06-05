@@ -622,16 +622,15 @@ class CopterScene(SceneBase):
             if self.copter.weapon == Weapon.MACHINE_GUN:
                 if self.copter.readyToShoot():
                     bullet = self.copter.shootTowards(mouse)
-
                     self.projectiles.add(bullet)
 
         for p in self.projectiles:
             # if projectile flies off-screen
             if self.isOutOfBounds(p.rect):
                 p.kill()
-
             self.checkProjectileHit(p)
 
+        self.copter.update()
         self.walls.update()
         self.obstacles.update()
         self.projectiles.update()

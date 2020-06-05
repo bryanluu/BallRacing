@@ -20,11 +20,16 @@ class Copter(pygame.sprite.Sprite):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
 
+        self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
+                                                (0, 0, 423, 150), (1, 4),
+                                                colorkey=-1,
+                                                frames=4,
+                                                loop=True)
+        self.strips.iter()
+        self.update()
+
         self.rect = pygame.Rect(0, 0, 20, 20)
         self.rect.center = pos
-
-        self.image = pygame.Surface([20, 20])
-        self.image.fill(colors.RED)
 
         self.angle = 0
         self.weapon = Weapon.MACHINE_GUN
@@ -34,7 +39,7 @@ class Copter(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
 
     def update(self):
-        pass
+        self.image = pygame.transform.scale(self.strips.next(), (85, 30))
 
     def shoot(self):
         pos = self.rect.center

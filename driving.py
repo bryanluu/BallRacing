@@ -14,7 +14,7 @@ class PowerupType(Enum):
     POWER_WHEELS = 3  # terrain has no effect on speed
     REVERSER = 4  # wheels go in reverse direction
     CONTROLLED_BOOST = 5  # a controlled boost
-    NUMBER_POWERUPS = 6 # number of valid powerups
+    NUMBER_POWERUPS = 6  # number of valid powerups
 
 
 class Car(pygame.sprite.Sprite):

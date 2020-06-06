@@ -521,7 +521,7 @@ class DrivingScene(SceneBase):
     def Finish(self):
         self.player.isCPU = True
         if self.timeElapsed < self.bestTime:
-            self.bestTime = timeElapsed
+            self.bestTime = self.timeElapsed
             self.saveScore(self.SAVE_FILE)
 
 

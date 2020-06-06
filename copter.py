@@ -28,7 +28,7 @@ class Copter(pygame.sprite.Sprite):
         self.strips.iter()
         self.update()
 
-        self.rect = pygame.Rect(0, 0, 20, 20)
+        self.rect = self.image.get_rect()
         self.rect.center = pos
 
         self.angle = 0
@@ -241,7 +241,9 @@ class Bat(Enemy):
 
         # Fetch the rectangle object that has the dimensions of the image
         # Update the position of this object by setting the values of rect.x and rect.y
-        self.rect = pygame.Rect(screenWidth, self.y, 32, 32)
+        self.rect = self.image.get_rect()
+        self.rect.left = screenWidth
+        self.rect.top = y
         self.x = float(self.rect.x)
         self.y = float(self.rect.y)
         self.speed = speed

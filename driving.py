@@ -36,13 +36,19 @@ class Car(pygame.sprite.Sprite):
 
         # initialize RNG for randomizer
         self.rng = np.random.default_rng()
-
-        self.rect = pygame.Rect(0, 0, 20, 20)
-        self.rect.center = pos
-
-        self.image = pygame.Surface([20, 20])
-        self.image.fill(color)
         self.color = color
+
+        self.car_img = utilities.load_image("car.png", -1)
+        self.car_img = pygame.transform.scale(self.car_img, (30, 15))
+        pygame.transform.threshold(self.car_img, self.car_img,
+                                    colors.WHITE, set_color=self.color,
+                                    threshold=(1,1,1,0), inverse_set=True)
+        self.image = pygame.transform.rotate(self.car_img, 90)
+        # self.image = self.car_img.copy()
+
+        self.rect = self.image.get_rect()
+        self.rect.width, self.rect.height = self.rect.height, self.rect.width
+        self.rect.center = pos
 
         self.isCPU = isCPU  # whether the car is computer controlled
 
@@ -210,7 +216,7 @@ class Car(pygame.sprite.Sprite):
 
     # removes power from car
     def removePower(self):
-        self.image.fill(self.color)
+        self.image = self.car_img.copy()
         self.power = None
         self.powerActive = False
 

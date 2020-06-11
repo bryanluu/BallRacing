@@ -43,16 +43,14 @@ class Car(pygame.sprite.Sprite):
         pygame.transform.threshold(self.car_img, self.car_img,
                                     colors.WHITE, set_color=self.color,
                                     threshold=(1,1,1,0), inverse_set=True)
-        self.image = pygame.transform.rotate(self.car_img, 90)
-        # self.image = self.car_img.copy()
+        self.image = self.car_img.copy()
 
         self.rect = self.image.get_rect()
-        self.rect.width, self.rect.height = self.rect.height, self.rect.width
         self.rect.center = pos
 
         self.isCPU = isCPU  # whether the car is computer controlled
 
-        self.angle = 0
+        self.angle = -np.pi/2
         self.speed = 0
         self.maxSpeed = self.MAX_FWD_SPEED
         self.acceleration = 0

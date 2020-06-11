@@ -305,9 +305,6 @@ class DrivingScene(SceneBase):
             if time.time() - self.startTime > self.START_COUNTDOWN:
                 self.started = True
                 self.startTime = time.time()
-
-                for car in self.cars:
-                    car.image = car.car_img.copy()
             return
 
         self.getPowerupsFromCheckpoints()

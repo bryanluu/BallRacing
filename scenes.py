@@ -212,13 +212,13 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         self.cars = pygame.sprite.Group()
-        self.player = Car((10, screenHeight / 2), colors.RED)
+        self.player = Car((10, screenHeight / 2), -90, colors.RED)
         self.cars.add(self.player)
-        cpu = Car((50, screenHeight / 2), colors.BLUE, isCPU=True)
+        cpu = Car((50, screenHeight / 2), -90, colors.BLUE, isCPU=True)
         self.cars.add(cpu)
-        cpu = Car((50, screenHeight / 2), colors.GREEN, isCPU=True)
+        cpu = Car((50, screenHeight / 2), -90, colors.GREEN, isCPU=True)
         self.cars.add(cpu)
-        cpu = Car((50, screenHeight / 2), colors.YELLOW, isCPU=True)
+        cpu = Car((50, screenHeight / 2), -90, colors.YELLOW, isCPU=True)
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
@@ -278,11 +278,11 @@ class DrivingScene(SceneBase):
     def spaceoutCars(self, lb, ub, horizontal=True):
         ncars = len(self.cars)
         for i, car in enumerate(self.cars):
-            newpos = lb+(i+1)*(ub-lb)/(ncars+1)
+            newpos = lb + (i + 1) * (ub - lb) / (ncars + 1)
             if horizontal:
-                car.rect.left = newpos - car.rect.width/2
+                car.rect.left = newpos - car.rect.width / 2
             else:
-                car.rect.top = newpos - car.rect.height/2
+                car.rect.top = newpos - car.rect.height / 2
 
     def ProcessInput(self, events, pressed_keys):
         for event in events:
@@ -393,7 +393,7 @@ class DrivingScene(SceneBase):
                 timeRect.center = screenWidth / 2, screenHeight / 2
                 self.screen.blit(timeSurf, timeRect)
 
-                rank = self.finished.index(self.player)+1
+                rank = self.finished.index(self.player) + 1
                 rankSurf = self.rankText.render("Rank: {0}".format(rank), True, colors.WHITE)
                 rankRect = rankSurf.get_rect()
                 rankRect.center = screenWidth / 2, screenHeight / 2 + 50
@@ -534,7 +534,6 @@ class CopterScene(SceneBase):
     MAX_FLUCTUATION = 15  # maximum amount of fluctuation
     BAT_RESPAWN_TIME = 10  # interval between bats
     SAVE_FILE = 'copter-score.save'  # save file name
-
 
     def __init__(self):
         SceneBase.__init__(self)

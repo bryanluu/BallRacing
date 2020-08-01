@@ -51,31 +51,6 @@ class Copter(pygame.sprite.Sprite):
             ball = Bullet(pos, geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)), -power * ball_speed * np.sin(np.radians(self.angle))))
 
             pygame.mixer.Sound.play(ball.sound)
-        elif self.weapon == Weapon.BOMB:
-            ball_speed = 30
-            power = 1
-
-            ball = Bomb(pos, geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)), -power * ball_speed * np.sin(np.radians(self.angle))))
-
-            pygame.mixer.Sound.play(self.cannon_sound)
-
-            self.ammo -= 1
-
-            if self.ammo == 0:
-                self.weapon = Weapon.CANNON
-
-        else:
-            info = pygame.display.Info()
-            screenWidth, screenHeight = info.current_w, info.current_h
-
-            ball = Laser(pos, geo.Vector2D(2*screenWidth*np.cos(np.radians(self.angle)), -2*screenHeight*np.sin(np.radians(self.angle))))
-
-            pygame.mixer.Sound.play(ball.sound)
-
-            self.ammo -= 1
-
-            if self.ammo == 0:
-                self.weapon = Weapon.CANNON
 
         self.lastShootTime = time.time()
 
@@ -141,39 +116,6 @@ class Projectile(pygame.sprite.Sprite):
         self.rect.move_ip(*self.v)
 
 
-
-class Bomb(Projectile):
-    BOMB_FUSE_TIME = 5
-    def initGraphics(self, pos):
-        self.strips = utilities.SpriteStripAnim('bomb.png', (0, 0, 60, 60), (12, 1), colorkey=-1, frames=5)
-        self.strips.iter()
-        self.image = self.strips.next()
-        self.image = pygame.transform.scale(self.image, (5, 5))
-        self.rect = self.image.get_rect()
-        self.rect.center = pos
-        self.sound = utilities.load_sound('bomb.wav')
-        self.start = time.time()
-        self.kill_on_explode = False
-
-    def explode(self):
-        pygame.mixer.Sound.play(self.sound)
-
-        return self.strips
-
-    @staticmethod
-    def collided(left, right):
-        x, y, w, h = left.rect
-        x2, y2, w2, h2 = right.rect
-
-        radius = 30
-
-        if x + radius > x2 and x - radius < x2 + w2 and y + radius > y2 and y - radius < y2 + h2:
-            if left.kill_on_explode or time.time() - left.start > Bomb.BOMB_FUSE_TIME:
-                return True
-        else:
-            return False
-
-
 class Bullet(Projectile):
 
     def initGraphics(self, pos):
@@ -185,30 +127,6 @@ class Bullet(Projectile):
 
     def explode(self):
         pygame.mixer.Sound.play(self.sound)
-
-
-class Laser(Projectile):
-    LASER_TIME = 0.2
-    def initGraphics(self, pos):
-        self.rect = pygame.Rect(*pos, 1, 1)
-        self.sound = utilities.load_sound('laser.wav')
-
-    def draw(self, screen):
-        pygame.draw.line(screen, colors.RED, self.rect.topleft, (geo.Vector2D(*self.pos()) + self.v).tuple())
-
-    @staticmethod
-    def collided(left, right):
-
-        topline = geo.Vector2D(*right.rect.topleft) - geo.Vector2D(*left.pos())
-        bottomline = geo.Vector2D(*right.rect.bottomleft) - geo.Vector2D(*left.pos())
-
-        if geo.Vector2D.angle_between(left.v, topline) < 0 < geo.Vector2D.angle_between(left.v, bottomline):
-            return True
-        else:
-            return False
-
-    def update(self):
-        pass
 
 
 class Enemy(pygame.sprite.Sprite):

@@ -34,6 +34,7 @@ class Copter(pygame.sprite.Sprite):
         self.angle = 0
         self.weapon = Weapon.MACHINE_GUN
         self.lastShootTime = time.time()
+        self.deathSound = utilities.load_sound('bomb.wav')
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -45,7 +46,7 @@ class Copter(pygame.sprite.Sprite):
         pos = self.rect.center
 
         if self.weapon == Weapon.MACHINE_GUN:
-            ball_speed = 40
+            ball_speed = 20
             power = 1
 
             ball = Bullet(pos, geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)), -power * ball_speed * np.sin(np.radians(self.angle))))
@@ -136,9 +137,15 @@ class Enemy(pygame.sprite.Sprite):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
         self.y = y
+        self.lives = 1
 
     def update(self):
         pass
+
+    def hurt(self):
+        self.lives -= 1
+        if self.lives == 0:
+            self.kill()
 
 
 class Bat(Enemy):
@@ -172,3 +179,29 @@ class Bat(Enemy):
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
         self.image = self.strips.next()
+
+
+class Obstacle(Enemy):
+    def __init__(self, top, height):
+        # Call the parent class (Sprite) constructor
+        Enemy.__init__(self, top)
+
+        info = pygame.display.Info()
+        screenWidth = info.current_w
+
+        self.rect = pygame.Rect(screenWidth, top, 2 * Wall.WIDTH, height)
+
+        self.image = pygame.Surface([2 * Wall.WIDTH, height])
+        self.color = np.array(colors.GRAY, dtype=int)
+        self.image.fill(self.color)
+
+        self.lives = 2
+
+    def update(self):
+        self.rect.left -= Wall.SPEED
+
+    def hurt(self):
+        Enemy.hurt(self)
+
+        self.color = np.array(np.rint(self.color * 0.9), dtype=int)
+        self.image.fill(self.color)

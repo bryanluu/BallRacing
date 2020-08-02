@@ -4,6 +4,7 @@ import geometry as geo
 import colors
 import numpy as np
 import time
+from collections import defaultdict
 from copter import *
 from driving import *
 
@@ -533,6 +534,7 @@ class CopterScene(SceneBase):
     FLUCTUATION_INTERVAL = 5  # how long before gap increases fluctuation
     MAX_FLUCTUATION = 15  # maximum amount of fluctuation
     BAT_RESPAWN_TIME = 10  # interval between bats
+    OBSTACLE_RESPAWN_TIME = 15  # interval between obstacles
     SAVE_FILE = 'copter-score.save'  # save file name
 
     def __init__(self):
@@ -548,8 +550,7 @@ class CopterScene(SceneBase):
         self.projectiles = pygame.sprite.Group()
         self.obstacles = pygame.sprite.Group()
         self.score = 0
-        self.timeOfLastAdd = {}
-        self.timeOfLastAdd['bats'] = self.starttime
+        self.timeOfLastAdd = defaultdict(lambda: self.starttime)
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -673,6 +674,8 @@ class CopterScene(SceneBase):
             pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
 
     def EndGame(self):
+        pygame.mixer.Sound.play(self.copter.deathSound)
+
         if self.score > self.highscore:
             self.saveScore(self.SAVE_FILE)
         self.SwitchToScene(Start())
@@ -698,20 +701,29 @@ class CopterScene(SceneBase):
             # self.explosions.append((projectile.explode(), projectile.pos()))
             projectile.kill()
 
-        collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, True, collided=pygame.sprite.collide_rect)
+        collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=pygame.sprite.collide_rect)
         for obj in collided_objects:
             # self.explosions.append((projectile.explode(), projectile.pos()))
+            obj.hurt()
             projectile.kill()
 
             if type(obj) is Bat:
                 self.starttime -= 5
 
     def addObstacles(self):
+        if time.time() - self.timeOfLastAdd['obstacles'] > self.OBSTACLE_RESPAWN_TIME:
+            roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
+            height = self.rng.random() * 0.4 * self.gap_height
+            top = self.rng.random() * (self.gap_height - height) + roof
+            obstacle = Obstacle(top, height)
+            self.obstacles.add(obstacle)
+            self.timeOfLastAdd['obstacles'] = time.time()
+
         if time.time() - self.timeOfLastAdd['bats'] > self.BAT_RESPAWN_TIME:
             self.BAT_RESPAWN_TIME *= 0.95
-            roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
-            y = self.rng.random()*0.8*self.gap_height + 0.1*roof
-            bat = Bat(y, Wall.SPEED*1.2)
+            roof, ground = self.gap_pos - self.gap_height / 2, self.gap_pos + self.gap_height / 2
+            y = self.rng.random() * 0.8 * self.gap_height + 0.1 * roof
+            bat = Bat(y, Wall.SPEED * 1.2)
             self.obstacles.add(bat)
             self.timeOfLastAdd['bats'] = time.time()
 

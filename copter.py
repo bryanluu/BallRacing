@@ -9,12 +9,11 @@ import geometry as geo
 
 class Weapon(Enum):
     MACHINE_GUN = 0
-    BOMB = 1
-    LASER = 2
 
 
 class Copter(pygame.sprite.Sprite):
     MACHINE_GUN_RELOAD_TIME = 0.5
+    BOOSTED_MACHINE_GUN_RELOAD_TIME = 0.3
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
@@ -182,6 +181,7 @@ class Bat(Enemy):
 
 
 class Obstacle(Enemy):
+
     def __init__(self, top, height):
         # Call the parent class (Sprite) constructor
         Enemy.__init__(self, top)
@@ -205,3 +205,35 @@ class Obstacle(Enemy):
 
         self.color = np.array(np.rint(self.color * 0.9), dtype=int)
         self.image.fill(self.color)
+
+
+class Powerup(pygame.sprite.Sprite):
+    SIDE_LENGTH = 15  # length of side
+    DEFAULT_LOOP_TIME = 2  # time to loop through shades
+
+    def __init__(self, top):
+        # Call the parent class (Sprite) constructor
+        pygame.sprite.Sprite.__init__(self)
+
+        info = pygame.display.Info()
+        screenWidth = info.current_w
+
+        self.rect = pygame.Rect(screenWidth, top,
+                                self.SIDE_LENGTH, self.SIDE_LENGTH)
+
+        self.image = pygame.Surface([self.SIDE_LENGTH, self.SIDE_LENGTH])
+        self.color = colors.RED
+        self.lastLoop = time.time()
+
+    def update(self):
+        t = time.time() - self.lastLoop
+        color = np.array(self.color)
+        if t > self.DEFAULT_LOOP_TIME:
+            self.lastLoop = time.time()
+        else:
+            # find the shade of the color using a linear seesaw
+            color = (1-0.3*(1-abs(t-self.DEFAULT_LOOP_TIME/2)/(self.DEFAULT_LOOP_TIME/2)))*color
+        self.image.fill(color)
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)

@@ -223,7 +223,7 @@ class Powerup(pygame.sprite.Sprite):
     DEFAULT_LOOP_TIME = 2  # default time that the powerup loops through types
     DEFAULT_LOOP_SPREAD = 0.5  # spread of loop times
     MIN_LOOP_TIME = 0.5  # minimum loop time
-    MAX_LOOP_TIME = 3.5 # maximum loop time
+    MAX_LOOP_TIME = 3.5  # maximum loop time
     DEFAULT_DURATION = 2  # time that the powerup lasts for
 
     def __init__(self, pos, type, switch=True):

@@ -207,7 +207,7 @@ class Obstacle(Enemy):
         self.image.fill(self.color)
 
 
-class Powerup(pygame.sprite.Sprite):
+class CopterPowerup(pygame.sprite.Sprite):
     SIDE_LENGTH = 15  # length of side
     DEFAULT_LOOP_TIME = 2  # time to loop through shades
 
@@ -234,6 +234,4 @@ class Powerup(pygame.sprite.Sprite):
             # find the shade of the color using a linear seesaw
             color = (1-0.3*(1-abs(t-self.DEFAULT_LOOP_TIME/2)/(self.DEFAULT_LOOP_TIME/2)))*color
         self.image.fill(color)
-
-    def draw(self, screen):
-        screen.blit(self.image, self.rect)
+        self.rect.left -= Wall.SPEED

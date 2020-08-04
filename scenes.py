@@ -535,6 +535,7 @@ class CopterScene(SceneBase):
     MAX_FLUCTUATION = 15  # maximum amount of fluctuation
     BAT_RESPAWN_TIME = 10  # interval between bats
     OBSTACLE_RESPAWN_TIME = 15  # interval between obstacles
+    POWERUP_INTERVAL = 20  # interval between powerups
     SAVE_FILE = 'copter-score.save'  # save file name
 
     def __init__(self):
@@ -549,6 +550,7 @@ class CopterScene(SceneBase):
         self.highscore = self.loadScore(self.SAVE_FILE)
         self.projectiles = pygame.sprite.Group()
         self.obstacles = pygame.sprite.Group()
+        self.powerups = pygame.sprite.Group()
         self.score = 0
         self.timeOfLastAdd = defaultdict(lambda: self.starttime)
 
@@ -618,6 +620,13 @@ class CopterScene(SceneBase):
             if self.isOutOfBounds(ob.rect):
                 ob.kill()
 
+        # add powerups
+        self.addPowerups()
+        for pup in self.powerups:
+            # if powerup flies off-screen, delete it
+            if self.isOutOfBounds(pup.rect):
+                pup.kill()
+
         if click[0]:
             if self.copter.weapon == Weapon.MACHINE_GUN:
                 if self.copter.readyToShoot():
@@ -633,12 +642,14 @@ class CopterScene(SceneBase):
         self.copter.update()
         self.walls.update()
         self.obstacles.update()
+        self.powerups.update()
         self.projectiles.update()
 
     def Render(self):
         self.screen.fill((255, 255, 255))
         self.copter.draw(self.screen)
         self.obstacles.draw(self.screen)
+        self.powerups.draw(self.screen)
         self.walls.draw(self.screen)
         self.projectiles.draw(self.screen)
 
@@ -721,11 +732,19 @@ class CopterScene(SceneBase):
 
         if time.time() - self.timeOfLastAdd['bats'] > self.BAT_RESPAWN_TIME:
             self.BAT_RESPAWN_TIME *= 0.95
-            roof, ground = self.gap_pos - self.gap_height / 2, self.gap_pos + self.gap_height / 2
+            roof, ground = self.gap_pos - self.gap_height / 2, self.gap_pos  + self.gap_height / 2
             y = self.rng.random() * 0.8 * self.gap_height + 0.1 * roof
             bat = Bat(y, Wall.SPEED * 1.2)
             self.obstacles.add(bat)
             self.timeOfLastAdd['bats'] = time.time()
+
+    def addPowerups(self):
+        if time.time() - self.timeOfLastAdd['powerups'] > self.POWERUP_INTERVAL:
+            roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
+            top = self.rng.random() * 0.6 * (self.gap_height - CopterPowerup.SIDE_LENGTH) + roof + 0.2 * self.gap_height
+            powerup = CopterPowerup(top)
+            self.powerups.add(powerup)
+            self.timeOfLastAdd['powerups'] = time.time()
 
     def generateWalls(self):
         info = pygame.display.Info()

@@ -4,9 +4,9 @@ import geometry as geo
 import colors
 import numpy as np
 import time
+import copter
+import driving
 from collections import defaultdict
-from copter import *
-from driving import *
 
 class SceneBase:
     def __init__(self):
@@ -213,47 +213,47 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         self.cars = pygame.sprite.Group()
-        self.player = Car((10, screenHeight / 2), -90, colors.RED)
+        self.player = driving.Car((10, screenHeight / 2), -90, colors.RED)
         self.cars.add(self.player)
-        cpu = Car((50, screenHeight / 2), -90, colors.BLUE, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), -90, colors.BLUE, isCPU=True)
         self.cars.add(cpu)
-        cpu = Car((50, screenHeight / 2), -90, colors.GREEN, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), -90, colors.GREEN, isCPU=True)
         self.cars.add(cpu)
-        cpu = Car((50, screenHeight / 2), -90, colors.YELLOW, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), -90, colors.YELLOW, isCPU=True)
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
         self.powerups = pygame.sprite.Group()
 
         self.terrain = pygame.sprite.Group()
-        mid_grass = Grass((screenWidth / 2, screenHeight / 2),
+        mid_grass = driving.Grass((screenWidth / 2, screenHeight / 2),
                           0.8 * screenWidth, 0.8 * screenHeight)
         self.terrain.add(mid_grass)
-        mid_barrier = Barrier((screenWidth / 2, screenHeight / 2),
+        mid_barrier = driving.Barrier((screenWidth / 2, screenHeight / 2),
                               0.75 * screenWidth, 0.75 * screenHeight)
         self.terrain.add(mid_barrier)
 
-        checkpointTopLeft = Checkpoint((0.125 * screenWidth / 2,
+        checkpointTopLeft = driving.Checkpoint((0.125 * screenWidth / 2,
                                         0.125 * screenHeight / 2),
                                        0.125 * screenWidth,
                                        0.125 * screenHeight, True)
         self.terrain.add(checkpointTopLeft)
-        checkpointTopRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+        checkpointTopRight = driving.Checkpoint((screenWidth - 0.125 * screenWidth / 2,
                                         0.125 * screenHeight / 2),
                                         0.125 * screenWidth,
                                         0.125 * screenHeight, False)
         self.terrain.add(checkpointTopRight)
-        checkpointBottomRight = Checkpoint((screenWidth - 0.125 * screenWidth / 2,
+        checkpointBottomRight = driving.Checkpoint((screenWidth - 0.125 * screenWidth / 2,
                                            screenHeight - 0.125 * screenHeight / 2),
                                            0.125 * screenWidth,
                                            0.125 * screenHeight, True)
         self.terrain.add(checkpointBottomRight)
-        checkpointBottomLeft = Checkpoint((0.125 * screenWidth / 2,
+        checkpointBottomLeft = driving.Checkpoint((0.125 * screenWidth / 2,
                                           screenHeight - 0.125 * screenHeight / 2),
                                           0.125 * screenWidth,
                                           0.125 * screenHeight, False)
         self.terrain.add(checkpointBottomLeft)
-        finishline = FinishLine((0.125 * screenWidth / 2,
+        finishline = driving.FinishLine((0.125 * screenWidth / 2,
                                 screenHeight / 2),
                                 0.125 * screenWidth,
                                 10)
@@ -342,11 +342,11 @@ class DrivingScene(SceneBase):
 
             car.slowed = False  # by default, Car isn't slowed
             for terrain in terrainHit:
-                if issubclass(type(terrain), Checkpoint):
+                if issubclass(type(terrain), driving.Checkpoint):
                     self.checkCheckpoints(car, terrain)
-                elif type(terrain) is Grass:
+                elif type(terrain) is driving.Grass:
                     car.slowed = True
-                elif type(terrain) is Barrier:
+                elif type(terrain) is driving.Barrier:
                     self.checkBarrierCollision(car, terrain)
 
             if car not in self.finished  and car.laps == self.LAP_LIMIT:
@@ -560,7 +560,7 @@ class CopterScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.copter = Copter([screenWidth / 4, screenHeight / 2])
+        self.copter = copter.Copter([screenWidth / 4, screenHeight / 2])
 
         self.walls = pygame.sprite.Group()
         self.generateWalls()
@@ -628,7 +628,7 @@ class CopterScene(SceneBase):
                 pup.kill()
 
         if click[0]:
-            if self.copter.weapon == Weapon.MACHINE_GUN:
+            if self.copter.weapon == copter.Weapon.MACHINE_GUN:
                 if self.copter.readyToShoot():
                     bullet = self.copter.shootTowards(mouse)
                     self.projectiles.add(bullet)
@@ -718,7 +718,7 @@ class CopterScene(SceneBase):
             obj.hurt()
             projectile.kill()
 
-            if type(obj) is Bat:
+            if type(obj) is copter.Bat:
                 self.starttime -= 5
 
     def addObstacles(self):
@@ -726,7 +726,7 @@ class CopterScene(SceneBase):
             roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
             height = self.rng.random() * 0.4 * self.gap_height
             top = self.rng.random() * (self.gap_height - height) + roof
-            obstacle = Obstacle(top, height)
+            obstacle = copter.Obstacle(top, height)
             self.obstacles.add(obstacle)
             self.timeOfLastAdd['obstacles'] = time.time()
 
@@ -734,15 +734,15 @@ class CopterScene(SceneBase):
             self.BAT_RESPAWN_TIME *= 0.95
             roof, ground = self.gap_pos - self.gap_height / 2, self.gap_pos  + self.gap_height / 2
             y = self.rng.random() * 0.8 * self.gap_height + 0.1 * roof
-            bat = Bat(y, Wall.SPEED * 1.2)
+            bat = copter.Bat(y, copter.Wall.SPEED * 1.2)
             self.obstacles.add(bat)
             self.timeOfLastAdd['bats'] = time.time()
 
     def addPowerups(self):
         if time.time() - self.timeOfLastAdd['powerups'] > self.POWERUP_INTERVAL:
             roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
-            top = self.rng.random() * 0.6 * (self.gap_height - CopterPowerup.SIDE_LENGTH) + roof + 0.2 * self.gap_height
-            powerup = CopterPowerup(top)
+            top = self.rng.random() * 0.6 * (self.gap_height - copter.Powerup.SIDE_LENGTH) + roof + 0.2 * self.gap_height
+            powerup = copter.Powerup(top)
             self.powerups.add(powerup)
             self.timeOfLastAdd['powerups'] = time.time()
 
@@ -755,17 +755,17 @@ class CopterScene(SceneBase):
             * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
             + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
 
-        for i in range(int(np.ceil(screenWidth / Wall.WIDTH)) + 2):
+        for i in range(int(np.ceil(screenWidth / copter.Wall.WIDTH)) + 2):
             self.gap_pos += self.FLUCTUATION * self.rng.standard_normal()
             self.gap_pos = utilities.bound(
                 self.gap_height / 2 + self.GAP_CLEARANCE * screenHeight,
                 self.gap_pos,
                 (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height / 2)
-            top = Wall(0, round(self.gap_pos - self.gap_height / 2))
-            bottom = Wall(round(self.gap_pos + self.gap_height / 2),
+            top = copter.Wall(0, round(self.gap_pos - self.gap_height / 2))
+            bottom = copter.Wall(round(self.gap_pos + self.gap_height / 2),
                           screenHeight - round(self.gap_pos + self.gap_height / 2))
-            top.rect.left = i * Wall.WIDTH
-            bottom.rect.left = i * Wall.WIDTH
+            top.rect.left = i * copter.Wall.WIDTH
+            bottom.rect.left = i * copter.Wall.WIDTH
             self.walls.add(top)
             self.walls.add(bottom)
 
@@ -784,9 +784,9 @@ class CopterScene(SceneBase):
             self.gap_pos = utilities.bound(self.gap_height / 2 + self.GAP_CLEARANCE * screenHeight,
                                  self.gap_pos,
                                  (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height / 2)
-            new = Wall(0, round(self.gap_pos - self.gap_height/2))
+            new = copter.Wall(0, round(self.gap_pos - self.gap_height/2))
         else:
-            new = Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
+            new = copter.Wall(round(self.gap_pos + self.gap_height/2), screenHeight - round(self.gap_pos + self.gap_height/2))
         return new
 
     def checkOutOfBounds(self):

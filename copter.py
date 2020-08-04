@@ -207,7 +207,7 @@ class Obstacle(Enemy):
         self.image.fill(self.color)
 
 
-class CopterPowerup(pygame.sprite.Sprite):
+class Powerup(pygame.sprite.Sprite):
     SIDE_LENGTH = 15  # length of side
     DEFAULT_LOOP_TIME = 2  # time to loop through shades
 

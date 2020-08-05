@@ -627,6 +627,14 @@ class CopterScene(SceneBase):
             if self.isOutOfBounds(pup.rect):
                 pup.kill()
 
+
+        # Powerups collision
+        powerupsHit = pygame.sprite.spritecollide(self.copter,
+                                                  self.powerups, True,
+                                                  collided=pygame.sprite.collide_rect)
+        for power in powerupsHit:
+            self.copter.givePower(power)
+
         if click[0]:
             if self.copter.weapon == copter.Weapon.MACHINE_GUN:
                 if self.copter.readyToShoot():

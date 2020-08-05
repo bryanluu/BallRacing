@@ -7,6 +7,10 @@ import time
 import geometry as geo
 
 
+class PowerupType(Enum):
+    GUN_BOOST = 0  # grants moderate speed boost to the gun
+
+
 class Weapon(Enum):
     MACHINE_GUN = 0
 
@@ -14,6 +18,7 @@ class Weapon(Enum):
 class Copter(pygame.sprite.Sprite):
     MACHINE_GUN_RELOAD_TIME = 0.5
     BOOSTED_MACHINE_GUN_RELOAD_TIME = 0.3
+    DEFAULT_AMMO = np.inf
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
@@ -34,6 +39,10 @@ class Copter(pygame.sprite.Sprite):
         self.weapon = Weapon.MACHINE_GUN
         self.lastShootTime = time.time()
         self.deathSound = utilities.load_sound('bomb.wav')
+        self.ammo = self.DEFAULT_AMMO
+
+        self.power = None
+        self.powerActive = False
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -42,6 +51,9 @@ class Copter(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.strips.next(), (85, 30))
 
     def shoot(self):
+        if self.ammo <= 0:
+            self.removePower()
+
         pos = self.rect.center
 
         if self.weapon == Weapon.MACHINE_GUN:
@@ -52,18 +64,54 @@ class Copter(pygame.sprite.Sprite):
 
             pygame.mixer.Sound.play(ball.sound)
 
+        self.ammo -= 1
         self.lastShootTime = time.time()
 
         return ball
 
     def readyToShoot(self):
-        return time.time() - self.lastShootTime > self.MACHINE_GUN_RELOAD_TIME
+        reload_time = self.MACHINE_GUN_RELOAD_TIME
+        if self.hasPower():
+            reload_time = self.BOOSTED_MACHINE_GUN_RELOAD_TIME
+        return time.time() - self.lastShootTime > reload_time
 
     def shootTowards(self, pos):
         # shoot towards the mouse location
         dr = geo.Vector2D(*pos) - geo.Vector2D(*self.rect.center)
         self.angle = (np.degrees(geo.Vector2D.angle_between(dr, geo.Vector2D(1, 0))))
         return self.shoot()
+
+    # checks if the copter has a power if none given, or else the given powertype
+    def hasPower(self, type=None):
+        if type is None:
+            return self.power
+        else:
+            return self.power and self.power.type == type
+
+    # gives power to copter
+    def givePower(self, power):
+        self.power = power
+        self.activatePower()
+
+    # removes power from copter
+    def removePower(self):
+        self.deactivatePower()
+        self.power = None
+
+    # activates powerup if the copter has one
+    def activatePower(self):
+        if self.hasPower():
+            if self.ammo == self.DEFAULT_AMMO:
+                self.ammo = self.power.ammo
+            else:
+                self.ammo += self.power.ammo
+            self.powerActive = True
+
+    # deactivates powerup if the car has one
+    def deactivatePower(self):
+        self.weapon = Weapon.MACHINE_GUN
+        self.ammo = self.DEFAULT_AMMO
+        self.powerActive = False
 
 
 class Wall(pygame.sprite.Sprite):
@@ -222,8 +270,10 @@ class Powerup(pygame.sprite.Sprite):
                                 self.SIDE_LENGTH, self.SIDE_LENGTH)
 
         self.image = pygame.Surface([self.SIDE_LENGTH, self.SIDE_LENGTH])
-        self.color = colors.RED
         self.lastLoop = time.time()
+        self.type = PowerupType.GUN_BOOST
+        self.color = colors.RED
+        self.ammo = 10
 
     def update(self):
         t = time.time() - self.lastLoop

@@ -34,18 +34,36 @@ class Copter(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect()
         self.rect.center = pos
+        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height])
+        self.surface.set_colorkey(colors.MAGENTA)
+        self.surface.fill(colors.MAGENTA)
 
         self.angle = 0
         self.weapon = Weapon.MACHINE_GUN
         self.lastShootTime = time.time()
         self.deathSound = utilities.load_sound('bomb.wav')
         self.ammo = self.DEFAULT_AMMO
+        self.ammoText = pygame.font.SysFont('helvetica', 12)
 
         self.power = None
         self.powerActive = False
 
     def draw(self, screen):
-        screen.blit(self.image, self.rect)
+        self.surface.fill(colors.MAGENTA)
+
+        imageRect = self.image.get_rect()
+        imageRect.x = 20
+        self.surface.blit(self.image, imageRect)
+
+        if self.ammo != np.inf and self.ammo > 0:
+            ammoSurf = self.ammoText.render("{0:>3}".format(self.ammo), False, (0, 0, 0))
+            ammoRect = ammoSurf.get_rect()
+            ammoRect.x, ammoRect.y = 0, 5
+            self.surface.blit(ammoSurf, ammoRect)
+
+        surfaceRect = self.surface.get_rect()
+        surfaceRect.x, surfaceRect.y = self.rect.x, self.rect.y
+        screen.blit(self.surface, self.rect)
 
     def update(self):
         self.image = pygame.transform.scale(self.strips.next(), (85, 30))
@@ -54,7 +72,7 @@ class Copter(pygame.sprite.Sprite):
         if self.ammo <= 0:
             self.removePower()
 
-        pos = self.rect.center
+        pos = self.gunLocation()
 
         if self.weapon == Weapon.MACHINE_GUN:
             ball_speed = 20
@@ -112,6 +130,12 @@ class Copter(pygame.sprite.Sprite):
         self.weapon = Weapon.MACHINE_GUN
         self.ammo = self.DEFAULT_AMMO
         self.powerActive = False
+
+    # location of gun
+    def gunLocation(self):
+        gunX = self.rect.right - 10
+        gunY = self.rect.bottom
+        return gunX, gunY
 
 
 class Wall(pygame.sprite.Sprite):

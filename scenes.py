@@ -755,7 +755,8 @@ class CopterScene(SceneBase):
         if time.time() - self.timeOfLastAdd['powerups'] > self.POWERUP_INTERVAL:
             roof, ground = self.gap_pos - self.gap_height/2, self.gap_pos + self.gap_height/2
             top = self.rng.random() * 0.6 * (self.gap_height - copter.Powerup.SIDE_LENGTH) + roof + 0.2 * self.gap_height
-            powerup = copter.Powerup(top)
+            powerupType = copter.PowerupType(int(self.rng.random() * copter.PowerupType.NUMBER_POWERUPS.value))
+            powerup = copter.Powerup(top, powerupType)
             self.powerups.add(powerup)
             self.timeOfLastAdd['powerups'] = time.time()
 
@@ -814,14 +815,17 @@ class CopterScene(SceneBase):
             self.EndGame()
 
     def checkCollisions(self):
-        for hit_list in pygame.sprite.spritecollide(self.copter, self.walls,
+        for wall in pygame.sprite.spritecollide(self.copter, self.walls,
                                                     False, collided=pygame.sprite.collide_rect):
             self.EndGame()
             break
 
-        for hit_list in pygame.sprite.spritecollide(self.copter, self.obstacles,
+        for ob in pygame.sprite.spritecollide(self.copter, self.obstacles,
                                                     False, collided=pygame.sprite.collide_rect):
-            self.EndGame()
+            if self.copter.hasPower(copter.PowerupType.SHIELD):
+                ob.kill()
+            else:
+                self.EndGame()
             break
 
     def isOutOfBounds(self, rect):

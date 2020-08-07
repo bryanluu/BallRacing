@@ -9,6 +9,8 @@ import geometry as geo
 
 class PowerupType(Enum):
     GUN_BOOST = 0  # grants moderate speed boost to the gun
+    SHIELD = 1  # grants temporary immunity to obstacles
+    NUMBER_POWERUPS = 2  # number of valid powerups
 
 
 class Weapon(Enum):
@@ -19,27 +21,15 @@ class Copter(pygame.sprite.Sprite):
     MACHINE_GUN_RELOAD_TIME = 0.5
     BOOSTED_MACHINE_GUN_RELOAD_TIME = 0.3
     DEFAULT_AMMO = np.inf
+    DEFAULT_WEAPON = Weapon.MACHINE_GUN
+    SHIELD_LOOP_TIME = 0.7
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
 
-        self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
-                                                (0, 0, 423, 150), (1, 4),
-                                                colorkey=-1,
-                                                frames=4,
-                                                loop=True)
-        self.strips.iter()
-        self.update()
-
-        self.rect = self.image.get_rect()
-        self.rect.center = pos
-        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height])
-        self.surface.set_colorkey(colors.MAGENTA)
-        self.surface.fill(colors.MAGENTA)
-
         self.angle = 0
-        self.weapon = Weapon.MACHINE_GUN
+        self.weapon = self.DEFAULT_WEAPON
         self.lastShootTime = time.time()
         self.deathSound = utilities.load_sound('bomb.wav')
         self.ammo = self.DEFAULT_AMMO
@@ -47,9 +37,22 @@ class Copter(pygame.sprite.Sprite):
 
         self.power = None
         self.powerActive = False
+        self.lastPowerupTime = 0
+
+        self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
+                                                (0, 0, 423, 150), (1, 4),
+                                                colorkey=-1,
+                                                frames=4,
+                                                loop=True)
+        self.strips.iter()
+        self.setCopterImage()
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height], flags=pygame.SRCALPHA)
+        self.surface.fill((0, 0, 0, 0))
 
     def draw(self, screen):
-        self.surface.fill(colors.MAGENTA)
+        self.surface.fill((0, 0, 0, 0))
 
         imageRect = self.image.get_rect()
         imageRect.x = 20
@@ -66,7 +69,30 @@ class Copter(pygame.sprite.Sprite):
         screen.blit(self.surface, self.rect)
 
     def update(self):
+        # powerup logic
+        if self.powerActive:
+            timeSpentActivated = time.time() - self.lastPowerupTime
+            self.power.timeLeft = self.power.startTimeLeft - timeSpentActivated
+            if self.power.timeLeft <= 0:
+                self.removePower()
+        if self.hasPower() and self.power.timeLeft <= 0:
+            self.removePower()
+
+        self.setCopterImage()
+
+    def setCopterImage(self):
         self.image = pygame.transform.scale(self.strips.next(), (85, 30))
+
+        if self.hasPower(PowerupType.SHIELD):
+            # T is the time since last loop
+            T = (time.time() - self.lastPowerupTime)\
+                % self.SHIELD_LOOP_TIME
+            # t goes from 1 to 0 to 1 during a loop time
+            t = abs(T - self.SHIELD_LOOP_TIME / 2)\
+                / (self.SHIELD_LOOP_TIME / 2)
+            # construct linear ramp of alpha values for copter
+            alpha = 255 - (1 - t) * (255 - 100)
+            self.image.set_alpha(alpha)
 
     def shoot(self):
         if self.ammo <= 0:
@@ -89,7 +115,7 @@ class Copter(pygame.sprite.Sprite):
 
     def readyToShoot(self):
         reload_time = self.MACHINE_GUN_RELOAD_TIME
-        if self.hasPower():
+        if self.hasPower(PowerupType.GUN_BOOST):
             reload_time = self.BOOSTED_MACHINE_GUN_RELOAD_TIME
         return time.time() - self.lastShootTime > reload_time
 
@@ -102,14 +128,15 @@ class Copter(pygame.sprite.Sprite):
     # checks if the copter has a power if none given, or else the given powertype
     def hasPower(self, type=None):
         if type is None:
-            return self.power
+            return self.power is not None
         else:
             return self.power and self.power.type == type
 
     # gives power to copter
     def givePower(self, power):
         self.power = power
-        self.activatePower()
+        if power.activateOnGet:
+            self.activatePower()
 
     # removes power from copter
     def removePower(self):
@@ -119,15 +146,18 @@ class Copter(pygame.sprite.Sprite):
     # activates powerup if the copter has one
     def activatePower(self):
         if self.hasPower():
-            if self.ammo == self.DEFAULT_AMMO:
-                self.ammo = self.power.ammo
-            else:
-                self.ammo += self.power.ammo
+            if self.power.type == PowerupType.GUN_BOOST:
+                if self.ammo == self.DEFAULT_AMMO:
+                    self.ammo = self.power.ammo
+                else:
+                    self.ammo += self.power.ammo
             self.powerActive = True
+            self.lastPowerupTime = time.time()
+            self.power.startTimeLeft = self.power.timeLeft
 
     # deactivates powerup if the car has one
     def deactivatePower(self):
-        self.weapon = Weapon.MACHINE_GUN
+        self.weapon = self.DEFAULT_WEAPON
         self.ammo = self.DEFAULT_AMMO
         self.powerActive = False
 
@@ -282,8 +312,10 @@ class Obstacle(Enemy):
 class Powerup(pygame.sprite.Sprite):
     SIDE_LENGTH = 15  # length of side
     DEFAULT_LOOP_TIME = 2  # time to loop through shades
+    DEFAULT_AMMO = np.inf  # default ammo of powerup
+    DEFAULT_DURATION = np.inf  # default duration of powerup
 
-    def __init__(self, top):
+    def __init__(self, top, type):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
 
@@ -295,9 +327,24 @@ class Powerup(pygame.sprite.Sprite):
 
         self.image = pygame.Surface([self.SIDE_LENGTH, self.SIDE_LENGTH])
         self.lastLoop = time.time()
-        self.type = PowerupType.GUN_BOOST
-        self.color = colors.RED
-        self.ammo = 10
+
+        self.setType(type)
+
+    def setType(self, type):
+        self.type = type
+        self.ammo = self.DEFAULT_AMMO
+        self.duration = self.DEFAULT_DURATION
+        self.activateOnGet = True
+
+        if type == PowerupType.GUN_BOOST:
+            self.color = colors.RED
+            self.ammo = 10
+        elif type == PowerupType.SHIELD:
+            self.color = colors.YELLOW
+            self.duration = 10
+
+        self.timeLeft = self.duration
+        self.startTimeLeft = self.timeLeft
 
     def update(self):
         t = time.time() - self.lastLoop

@@ -318,7 +318,7 @@ class DrivingScene(SceneBase):
             return dr.length() <= self.CPU_COLLISION_RADIUS
 
         for car in self.cars:
-            self.setNextCheckpoint(car)
+            self.drive(car)
 
             # Powerups collision
             powerupsHit = pygame.sprite.spritecollide(car,
@@ -481,20 +481,25 @@ class DrivingScene(SceneBase):
                 if powerup:
                     self.powerups.add(powerup)
 
-    def setNextCheckpoint(self, car):
+    def drive(self, car):
         if self.player not in self.finished and car == self.player:
-            mouse = pygame.mouse.get_pos()
-            click = pygame.mouse.get_pressed()
-            mousePos = geo.Vector2D(*mouse)
-            # follow mouse drag
-            if click[0]:  # left click
-                self.player.driveTowards(mousePos)
-            elif click[2]:  # right click
-                self.player.driveAwayFrom(mousePos)
-            else:
-                self.player.idle()
-            return
+            self.drivePlayer()
+        else:
+            self.driveCPU(car)
 
+    def drivePlayer(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+        mousePos = geo.Vector2D(*mouse)
+        # follow mouse drag
+        if click[0]:  # left click
+            self.player.driveTowards(mousePos)
+        elif click[2]:  # right click
+            self.player.driveAwayFrom(mousePos)
+        else:
+            self.player.idle()
+
+    def driveCPU(self, car):
         nextCheckpointIndex = (car.checkpoint + 1)\
             % len(self.checkpoints)
         nextCheckpoint = self.checkpoints[nextCheckpointIndex]

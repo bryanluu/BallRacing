@@ -33,7 +33,7 @@ class Copter(pygame.sprite.Sprite):
         self.lastShootTime = time.time()
         self.deathSound = utilities.load_sound('bomb.wav')
         self.ammo = self.DEFAULT_AMMO
-        self.ammoText = pygame.font.SysFont('helvetica', 12)
+        self.powerupText = pygame.font.SysFont('helvetica', 12)
 
         self.power = None
         self.powerActive = False
@@ -59,10 +59,18 @@ class Copter(pygame.sprite.Sprite):
         self.surface.blit(self.image, imageRect)
 
         if self.ammo != np.inf and self.ammo > 0:
-            ammoSurf = self.ammoText.render("{0:>3}".format(self.ammo), False, (0, 0, 0))
+            ammoSurf = self.powerupText.render("{0:>3}".format(self.ammo), False, (0, 0, 0))
             ammoRect = ammoSurf.get_rect()
             ammoRect.x, ammoRect.y = 0, 5
             self.surface.blit(ammoSurf, ammoRect)
+
+        if self.hasPower(PowerupType.SHIELD):
+            height = 15 * max(self.power.timeLeft, 0) / self.power.startTimeLeft
+            timeSurf = pygame.Surface([5, height])
+            timeSurf.fill(colors.GREEN)
+            timeRect = timeSurf.get_rect()
+            timeRect.x, timeRect.y = 0, 5
+            self.surface.blit(timeSurf, timeRect)
 
         surfaceRect = self.surface.get_rect()
         surfaceRect.x, surfaceRect.y = self.rect.x, self.rect.y
@@ -145,12 +153,14 @@ class Copter(pygame.sprite.Sprite):
 
     # activates powerup if the copter has one
     def activatePower(self):
+        lastAmmo = self.ammo  # save ammo before activation
+        self.deactivatePower()  # reset defaults first
         if self.hasPower():
             if self.power.type == PowerupType.GUN_BOOST:
-                if self.ammo == self.DEFAULT_AMMO:
+                if lastAmmo == self.DEFAULT_AMMO:
                     self.ammo = self.power.ammo
                 else:
-                    self.ammo += self.power.ammo
+                    self.ammo = lastAmmo + self.power.ammo
             self.powerActive = True
             self.lastPowerupTime = time.time()
             self.power.startTimeLeft = self.power.timeLeft
@@ -283,6 +293,7 @@ class Bat(Enemy):
 
 
 class Obstacle(Enemy):
+    MIN_HEIGHT = 20
 
     def __init__(self, top, height):
         # Call the parent class (Sprite) constructor

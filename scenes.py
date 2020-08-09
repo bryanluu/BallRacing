@@ -625,7 +625,7 @@ class CopterScene(SceneBase):
         for generator in self.EXPONENTIAL_GENERATORS:
             # if time to generate is reached
             if self.timeUntilGeneration[generator] <= 0:
-                self.generate(generator)
+                self.spawn(generator)
             else: # remove time from generator
                 now = time.time()
                 self.timeUntilGeneration[generator] -= now - self.lastUpdateTime[generator]
@@ -743,7 +743,7 @@ class CopterScene(SceneBase):
             if type(obj) is copter.Bat:
                 self.starttime -= 5
 
-    def generate(self, generator):
+    def spawn(self, generator):
         if generator == 'obstacles':
             self.spawnObstacle()
         elif generator == 'bats':
@@ -757,12 +757,12 @@ class CopterScene(SceneBase):
         roof, ground = self.gap_pos - self.gap_height / 2,\
             self.gap_pos + self.gap_height / 2
         height = self.rng.random() * 0.4 * self.gap_height
+        height = utilities.bound(copter.Obstacle.MIN_HEIGHT, height, height)
         top = self.rng.random() * (self.gap_height - height) + roof
         obstacle = copter.Obstacle(top, height)
         self.obstacles.add(obstacle)
 
     def spawnBat(self):
-        self.SPAWN_INTERVAL['bats'] *= 0.95
         roof, ground = self.gap_pos - self.gap_height / 2,\
             self.gap_pos + self.gap_height / 2
         y = self.rng.random() * 0.8 * self.gap_height + 0.1 * roof

@@ -641,7 +641,6 @@ class CopterScene(SceneBase):
             if self.isOutOfBounds(pup.rect):
                 pup.kill()
 
-
         # Powerups collision
         powerupsHit = pygame.sprite.spritecollide(self.copter,
                                                   self.powerups, True,
@@ -650,12 +649,16 @@ class CopterScene(SceneBase):
             self.copter.givePower(power)
 
         if click[0]:
-            if self.copter.weapon == copter.Weapon.MACHINE_GUN:
-                if self.copter.readyToShoot():
-                    bullet = self.copter.shootTowards(mouse)
-                    self.projectiles.add(bullet)
+            if self.copter.readyToShoot():
+                bullet = self.copter.shootTowards(mouse)
+                self.projectiles.add(bullet)
 
         for p in self.projectiles:
+            if type(p) is copter.Laser:
+                if time.time() - self.copter.lastShootTime\
+                        >= copter.Laser.LASER_TIME:
+                    p.kill()
+
             # if projectile flies off-screen
             if self.isOutOfBounds(p.rect):
                 p.kill()
@@ -673,7 +676,9 @@ class CopterScene(SceneBase):
         self.obstacles.draw(self.screen)
         self.powerups.draw(self.screen)
         self.walls.draw(self.screen)
-        self.projectiles.draw(self.screen)
+
+        for p in self.projectiles:
+            p.draw(self.screen)
 
         scoreSurf = self.scoreText.render("Time: {0:.2f}".format(self.score), True, (0, 0, 0))
         scoreRect = scoreSurf.get_rect()
@@ -729,19 +734,28 @@ class CopterScene(SceneBase):
         return float(score)
 
     def checkProjectileHit(self, projectile):
-        collided_objects = pygame.sprite.spritecollide(projectile, self.walls, False, collided=pygame.sprite.collide_rect)
-        for obj in collided_objects:
-            # self.explosions.append((projectile.explode(), projectile.pos()))
-            projectile.kill()
+        if type(projectile) is copter.Laser:
+            collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=projectile.collided)
+            for obj in collided_objects:
+                while not obj.dead():
+                    obj.hurt()
 
-        collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=pygame.sprite.collide_rect)
-        for obj in collided_objects:
-            # self.explosions.append((projectile.explode(), projectile.pos()))
-            obj.hurt()
-            projectile.kill()
+                if type(obj) is copter.Bat:
+                    self.starttime -= 5
+        else:
+            collided_objects = pygame.sprite.spritecollide(projectile, self.walls, False, collided=pygame.sprite.collide_rect)
+            for obj in collided_objects:
+                # self.explosions.append((projectile.explode(), projectile.pos()))
+                projectile.kill()
 
-            if type(obj) is copter.Bat:
-                self.starttime -= 5
+            collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=projectile.collided)
+            for obj in collided_objects:
+                # self.explosions.append((projectile.explode(), projectile.pos()))
+                obj.hurt()
+                projectile.kill()
+
+                if type(obj) is copter.Bat:
+                    self.starttime -= 5
 
     def spawn(self, generator):
         if generator == 'obstacles':

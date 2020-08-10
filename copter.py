@@ -10,11 +10,13 @@ import geometry as geo
 class PowerupType(Enum):
     GUN_BOOST = 0  # grants moderate speed boost to the gun
     SHIELD = 1  # grants temporary immunity to obstacles
-    NUMBER_POWERUPS = 2  # number of valid powerups
+    LASER = 2  # grants the ability to shoot a laser
+    NUMBER_POWERUPS = 3  # number of valid powerups
 
 
 class Weapon(Enum):
     MACHINE_GUN = 0
+    LASER = 1
 
 
 class Copter(pygame.sprite.Sprite):
@@ -42,7 +44,7 @@ class Copter(pygame.sprite.Sprite):
         self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
                                                 (0, 0, 423, 150), (1, 4),
                                                 colorkey=-1,
-                                                frames=4,
+                                                frames=1,
                                                 loop=True)
         self.strips.iter()
         self.setCopterImage()
@@ -65,7 +67,7 @@ class Copter(pygame.sprite.Sprite):
             self.surface.blit(ammoSurf, ammoRect)
 
         if self.hasPower(PowerupType.SHIELD):
-            height = 15 * max(self.power.timeLeft, 0) / self.power.startTimeLeft
+            height = 20 * max(self.power.timeLeft, 0) / self.power.startTimeLeft
             timeSurf = pygame.Surface([5, height])
             timeSurf.fill(colors.GREEN)
             timeRect = timeSurf.get_rect()
@@ -115,6 +117,13 @@ class Copter(pygame.sprite.Sprite):
             ball = Bullet(pos, geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)), -power * ball_speed * np.sin(np.radians(self.angle))))
 
             pygame.mixer.Sound.play(ball.sound)
+        elif self.weapon == Weapon.LASER:
+            info = pygame.display.Info()
+            screenWidth, screenHeight = info.current_w, info.current_h
+
+            ball = Laser(pos, geo.Vector2D(2 * screenWidth * np.cos(np.radians(self.angle)), -2 * screenHeight * np.sin(np.radians(self.angle))))
+
+            pygame.mixer.Sound.play(ball.sound)
 
         self.ammo -= 1
         self.lastShootTime = time.time()
@@ -125,6 +134,8 @@ class Copter(pygame.sprite.Sprite):
         reload_time = self.MACHINE_GUN_RELOAD_TIME
         if self.hasPower(PowerupType.GUN_BOOST):
             reload_time = self.BOOSTED_MACHINE_GUN_RELOAD_TIME
+        elif self.hasPower(PowerupType.LASER):
+            reload_time = 0.5
         return time.time() - self.lastShootTime > reload_time
 
     def shootTowards(self, pos):
@@ -154,10 +165,17 @@ class Copter(pygame.sprite.Sprite):
     # activates powerup if the copter has one
     def activatePower(self):
         lastAmmo = self.ammo  # save ammo before activation
+        lastWeapon = self.weapon  # save weapon before activation
         self.deactivatePower()  # reset defaults first
         if self.hasPower():
-            if self.power.type == PowerupType.GUN_BOOST:
-                if lastAmmo == self.DEFAULT_AMMO:
+            if self.hasPower(PowerupType.GUN_BOOST):
+                if lastWeapon != Weapon.MACHINE_GUN or lastAmmo == self.DEFAULT_AMMO:
+                    self.ammo = self.power.ammo
+                else:
+                    self.ammo = lastAmmo + self.power.ammo
+            if self.hasPower(PowerupType.LASER):
+                self.weapon = Weapon.LASER
+                if lastWeapon != Weapon.LASER or lastAmmo == self.DEFAULT_AMMO:
                     self.ammo = self.power.ammo
                 else:
                     self.ammo = lastAmmo + self.power.ammo
@@ -227,6 +245,10 @@ class Projectile(pygame.sprite.Sprite):
     def update(self):
         self.rect.move_ip(*self.v)
 
+    @staticmethod
+    def collided(left, right):
+        return pygame.sprite.collide_rect(left, right)
+
 
 class Bullet(Projectile):
 
@@ -237,8 +259,38 @@ class Bullet(Projectile):
         self.rect.center = pos
         self.sound = utilities.load_sound('bullet.wav')
 
-    def explode(self):
-        pygame.mixer.Sound.play(self.sound)
+
+class Laser(Projectile):
+    LASER_TIME = 0.2
+
+    def initGraphics(self, pos):
+        self.rect = pygame.Rect(pos, (1, 1))
+        self.sound = utilities.load_sound('laser.wav')
+        self.shootTime = time.time()
+
+    def update(self):
+        pass
+
+    def draw(self, screen):
+        t = (time.time() - self.shootTime) / self.LASER_TIME
+        t = utilities.bound(0, t, 1)
+        thickness = int((1 - t) * 3)
+        color = colors.RED
+        pygame.draw.line(screen, color, self.rect.topleft,
+                         (geo.Vector2D(*self.pos()) + self.v).tuple(), thickness)
+
+    @staticmethod
+    def collided(left, right):
+
+        topline = geo.Vector2D(*right.rect.topleft) - geo.Vector2D(*left.pos())
+        bottomline = geo.Vector2D(*right.rect.bottomleft)\
+            - geo.Vector2D(*left.pos())
+
+        if geo.Vector2D.angle_between(left.v, topline)\
+                < 0 < geo.Vector2D.angle_between(left.v, bottomline):
+            return True
+        else:
+            return False
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -257,6 +309,9 @@ class Enemy(pygame.sprite.Sprite):
         self.lives -= 1
         if self.lives == 0:
             self.kill()
+
+    def dead(self):
+        return self.lives <= 0
 
 
 class Bat(Enemy):
@@ -348,11 +403,14 @@ class Powerup(pygame.sprite.Sprite):
         self.activateOnGet = True
 
         if type == PowerupType.GUN_BOOST:
-            self.color = colors.RED
+            self.color = colors.BLUE
             self.ammo = 10
         elif type == PowerupType.SHIELD:
             self.color = colors.YELLOW
             self.duration = 10
+        elif type == PowerupType.LASER:
+            self.color = colors.RED
+            self.ammo = 1
 
         self.timeLeft = self.duration
         self.startTimeLeft = self.timeLeft

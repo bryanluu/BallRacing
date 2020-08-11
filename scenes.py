@@ -538,11 +538,12 @@ class CopterScene(SceneBase):
     NARROWING_INTERVAL = 5  # how long before the gap narrows
     FLUCTUATION_INTERVAL = 5  # how long before gap increases fluctuation
     MAX_FLUCTUATION = 15  # maximum amount of fluctuation
-    EXPONENTIAL_GENERATORS = ['bats', 'obstacles', 'powerups']
+    EXPONENTIAL_GENERATORS = ['bats', 'obstacles', 'powerups', 'balloons']
     SPAWN_INTERVAL = {}
     SPAWN_INTERVAL['bats'] = 8
     SPAWN_INTERVAL['obstacles'] = 10
     SPAWN_INTERVAL['powerups'] = 12
+    SPAWN_INTERVAL['balloons'] = 8
     SAVE_FILE = 'copter-score.save'  # save file name
 
     def __init__(self):
@@ -734,28 +735,17 @@ class CopterScene(SceneBase):
         return float(score)
 
     def checkProjectileHit(self, projectile):
-        if type(projectile) is copter.Laser:
-            collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=projectile.collided)
-            for obj in collided_objects:
-                while not obj.dead():
-                    obj.hurt()
-
-                if type(obj) is copter.Bat:
-                    self.starttime -= 5
-        else:
+        if type(projectile) is not copter.Laser:
             collided_objects = pygame.sprite.spritecollide(projectile, self.walls, False, collided=pygame.sprite.collide_rect)
             for obj in collided_objects:
-                # self.explosions.append((projectile.explode(), projectile.pos()))
                 projectile.kill()
 
-            collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=projectile.collided)
-            for obj in collided_objects:
-                # self.explosions.append((projectile.explode(), projectile.pos()))
-                obj.hurt()
-                projectile.kill()
-
-                if type(obj) is copter.Bat:
-                    self.starttime -= 5
+        collided_objects = pygame.sprite.spritecollide(projectile, self.obstacles, False, collided=projectile.collided)
+        for obj in collided_objects:
+            dead = obj.hurt()
+            projectile.kill()
+            if dead:
+                self.starttime -= obj.AWARD
 
     def spawn(self, generator):
         if generator == 'obstacles':
@@ -764,6 +754,8 @@ class CopterScene(SceneBase):
             self.spawnBat()
         elif generator == 'powerups':
             self.spawnPowerup()
+        elif generator == 'balloons':
+            self.spawnBalloon()
         self.timeUntilGeneration[generator] = self.rng.exponential(
             self.SPAWN_INTERVAL[generator])
 
@@ -779,9 +771,20 @@ class CopterScene(SceneBase):
     def spawnBat(self):
         roof, ground = self.gap_pos - self.gap_height / 2,\
             self.gap_pos + self.gap_height / 2
-        y = self.rng.random() * 0.8 * self.gap_height + 0.1 * roof
-        bat = copter.Bat(y, copter.Wall.SPEED * 1.2)
+        y = self.rng.random() * 0.8 * (self.gap_height - 32) + 1.1 * roof
+        bat = copter.Bat(y)
         self.obstacles.add(bat)
+        self.SPAWN_INTERVAL['bats'] = max(5,
+                                          self.SPAWN_INTERVAL['bats'] * 0.95)
+
+    def spawnBalloon(self):
+        roof, ground = self.gap_pos - self.gap_height / 2,\
+            self.gap_pos + self.gap_height / 2
+        y = self.rng.random() * 0.6 * self.gap_height + 1.4 * roof
+        balloon = copter.Balloon(y)
+        self.obstacles.add(balloon)
+        self.SPAWN_INTERVAL['balloons'] = max(5,
+                                              self.SPAWN_INTERVAL['balloons'] * 0.95)
 
     def spawnPowerup(self):
         roof, ground = self.gap_pos - self.gap_height / 2,\
@@ -856,7 +859,7 @@ class CopterScene(SceneBase):
         for ob in pygame.sprite.spritecollide(self.copter, self.obstacles,
                                                     False, collided=pygame.sprite.collide_rect):
             if self.copter.hasPower(copter.PowerupType.SHIELD):
-                ob.kill()
+                ob.destroy()
             else:
                 self.EndGame()
             break

@@ -294,6 +294,8 @@ class Laser(Projectile):
 
 
 class Enemy(pygame.sprite.Sprite):
+    AWARD = 0
+
     # Constructor. Pass in the color of the block,
     # and its x and y position
     def __init__(self, y):
@@ -305,25 +307,41 @@ class Enemy(pygame.sprite.Sprite):
     def update(self):
         pass
 
+    # takes a life from the enemy, kills it if no lives left
     def hurt(self):
-        self.lives -= 1
-        if self.lives == 0:
+        if not self.dead():
+            self.lives -= 1
+        if self.dead():
             self.kill()
+            return True
+        else:
+            return False
+
+    def destroy(self):
+        while not self.dead():
+            self.hurt()
 
     def dead(self):
-        return self.lives <= 0
+        return self.lives == 0
 
 
 class Bat(Enemy):
+    AWARD = 5  # award in seconds after kill
+
     # Constructor. Pass in the color of the block,
     # and its x and y position
-    def __init__(self, y, speed):
+    def __init__(self, y):
         # Call the parent class (Sprite) constructor
         Enemy.__init__(self, y)
 
         # Create an image of the block, and fill it with a color.
         # This could also be an image loaded from the disk.
-        self.strips = utilities.SpriteStripAnim('bat.png', (0, 128 - 32, 32, 32), (4, 1), colorkey=-1, frames=3, loop=True)
+        self.strips = utilities.SpriteStripAnim('bat.png',
+                                                (0, 128 - 32, 32, 32),
+                                                (4, 1),
+                                                colorkey=-1,
+                                                frames=3,
+                                                loop=True)
         self.strips.iter()
         self.image = self.strips.next()
 
@@ -337,7 +355,7 @@ class Bat(Enemy):
         self.rect.top = y
         self.x = float(self.rect.x)
         self.y = float(self.rect.y)
-        self.speed = speed
+        self.speed = Wall.SPEED * 1.2
 
     def update(self):
         self.x -= self.speed
@@ -371,8 +389,60 @@ class Obstacle(Enemy):
     def hurt(self):
         Enemy.hurt(self)
 
-        self.color = np.array(np.rint(self.color * 0.9), dtype=int)
+        self.color = np.array(np.rint(self.color * 0.8), dtype=int)
         self.image.fill(self.color)
+
+
+class Balloon(Enemy):
+    AWARD = 5
+
+    def __init__(self, top):
+        # Call the parent class (Sprite) constructor
+        Enemy.__init__(self, top)
+        self.pop_sound = utilities.load_sound('balloon_pop.wav')
+
+        info = pygame.display.Info()
+        screenWidth = info.current_w
+
+        choice = np.random.choice([0, 0, 0, 1, 1, 2])
+
+        # Create an image of the block, and fill it with a color.
+        # This could also be an image loaded from the disk.
+        if choice == 0:
+            self.image = utilities.load_image('green_balloon.png')
+            self.floatspeed = 1
+            self.AWARD = 5
+        elif choice == 1:
+            self.image = utilities.load_image('blue_balloon.png')
+            self.floatspeed = 1.5
+            self.AWARD = 7
+        elif choice == 2:
+            self.image = utilities.load_image('red_balloon.png')
+            self.floatspeed = 2
+            self.AWARD = 10
+        self.image = pygame.transform.scale(self.image, (15, 30))
+
+        # Fetch the rectangle object that has the dimensions of the image
+        # Update the position of this object by setting the values of rect.x and rect.y
+        self.rect = self.image.get_rect()
+        self.rect.y = top
+        self.rect.x = screenWidth
+        self.lives = 1
+
+    def update(self):
+        self.y += min(-0.1, np.random.normal(-self.floatspeed, 0.5))
+        # move upwards
+        self.rect.y = int(self.y)
+        self.rect.x -= Wall.SPEED
+
+        # balloon is off-screen
+        if self.rect.y < -self.rect.h:
+            self.kill()
+
+    def hurt(self):
+        Enemy.hurt(self)
+        if self.dead():
+            pygame.mixer.Sound.play(self.pop_sound)
 
 
 class Powerup(pygame.sprite.Sprite):
@@ -425,3 +495,4 @@ class Powerup(pygame.sprite.Sprite):
             color = (1-0.3*(1-abs(t-self.DEFAULT_LOOP_TIME/2)/(self.DEFAULT_LOOP_TIME/2)))*color
         self.image.fill(color)
         self.rect.left -= Wall.SPEED
+

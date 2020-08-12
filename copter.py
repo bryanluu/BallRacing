@@ -24,7 +24,8 @@ class Copter(pygame.sprite.Sprite):
     BOOSTED_MACHINE_GUN_RELOAD_TIME = 0.3
     DEFAULT_AMMO = np.inf
     DEFAULT_WEAPON = Weapon.MACHINE_GUN
-    SHIELD_LOOP_TIME = 0.7
+    SHIELD_LOOP_TIME = 0.7  # time between transparency loops
+    INVINCIBILITY_TIME = 1  # time of invincibility after copter is hurt
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
@@ -32,10 +33,12 @@ class Copter(pygame.sprite.Sprite):
 
         self.angle = 0
         self.weapon = self.DEFAULT_WEAPON
-        self.lastShootTime = time.time()
+        self.lastShootTime = 0
         self.deathSound = utilities.load_sound('bomb.wav')
         self.ammo = self.DEFAULT_AMMO
-        self.powerupText = pygame.font.SysFont('helvetica', 12)
+        self.powerupText = pygame.font.SysFont('arial', 12)
+        self.lives = 3
+        self.lastHurtTime = 0
 
         self.power = None
         self.powerActive = False
@@ -50,15 +53,26 @@ class Copter(pygame.sprite.Sprite):
         self.setCopterImage()
         self.rect = self.image.get_rect()
         self.rect.center = pos
-        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height], flags=pygame.SRCALPHA)
-        self.surface.fill((0, 0, 0, 0))
+        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height + 20], flags=pygame.SRCALPHA)
+        self.surface.fill(colors.TRANSPARENT)
 
     def draw(self, screen):
-        self.surface.fill((0, 0, 0, 0))
+        self.surface.fill(colors.TRANSPARENT)
+
+        self.setCopterImage()
 
         imageRect = self.image.get_rect()
         imageRect.x = 20
         self.surface.blit(self.image, imageRect)
+
+        if self.lives <= 5:
+            heartStr = "♥" * self.lives
+        else:
+            heartStr = "♥ x {0}".format(self.lives)
+        heartSurf = self.powerupText.render(heartStr, False, (255, 0, 0))
+        heartRect = heartSurf.get_rect()
+        heartRect.x, heartRect.y = 20, imageRect.height + 5
+        self.surface.blit(heartSurf, heartRect)
 
         if self.ammo != np.inf and self.ammo > 0:
             ammoSurf = self.powerupText.render("{0:>3}".format(self.ammo), False, (0, 0, 0))
@@ -88,12 +102,13 @@ class Copter(pygame.sprite.Sprite):
         if self.hasPower() and self.power.timeLeft <= 0:
             self.removePower()
 
-        self.setCopterImage()
-
     def setCopterImage(self):
         self.image = pygame.transform.scale(self.strips.next(), (85, 30))
 
-        if self.hasPower(PowerupType.SHIELD):
+        if self.invincible():
+            alpha = 100
+            self.image.set_alpha(alpha)
+        elif self.hasPower(PowerupType.SHIELD):
             # T is the time since last loop
             T = (time.time() - self.lastPowerupTime)\
                 % self.SHIELD_LOOP_TIME
@@ -194,6 +209,26 @@ class Copter(pygame.sprite.Sprite):
         gunX = self.rect.right - 10
         gunY = self.rect.bottom
         return gunX, gunY
+
+    # takes a life
+    def hurt(self):
+        if self.invincible():
+            return False
+        if not self.dead():
+            self.lives -= 1
+            self.lastHurtTime = time.time()
+            pygame.mixer.Sound.play(self.deathSound)
+        if self.dead():
+            self.kill()
+            return True
+        else:
+            return False
+
+    def dead(self):
+        return self.lives == 0
+
+    def invincible(self):
+        return time.time() - self.lastHurtTime < self.INVINCIBILITY_TIME
 
 
 class Wall(pygame.sprite.Sprite):

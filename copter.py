@@ -26,6 +26,7 @@ class Copter(pygame.sprite.Sprite):
     DEFAULT_WEAPON = Weapon.MACHINE_GUN
     SHIELD_LOOP_TIME = 0.7  # time between transparency loops
     INVINCIBILITY_TIME = 1  # time of invincibility after copter is hurt
+    WEIGHT = 0.8  # affects acceleration
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
@@ -43,6 +44,11 @@ class Copter(pygame.sprite.Sprite):
         self.power = None
         self.powerActive = False
         self.lastPowerupTime = 0
+
+        self.v = geo.Vector2D.zero()
+        self.a = geo.Vector2D.zero()
+        self.flying = False
+        self.controlled = True
 
         self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
                                                 (0, 0, 423, 150), (1, 4),
@@ -101,6 +107,22 @@ class Copter(pygame.sprite.Sprite):
                 self.removePower()
         if self.hasPower() and self.power.timeLeft <= 0:
             self.removePower()
+
+        if not self.invincible():
+            self.controlled = True
+
+        # flying logic
+        if self.controlled:
+            if self.flying:
+                self.a = geo.Vector2D(0, -self.WEIGHT)
+            else:
+                self.a = geo.Vector2D(0, self.WEIGHT)
+        else:
+            self.a = geo.Vector2D.zero()
+            self.v = geo.Vector2D.zero()
+
+        self.v += self.a
+        self.rect.move_ip(*self.v)
 
     def setCopterImage(self):
         self.image = pygame.transform.scale(self.strips.next(), (85, 30))
@@ -218,6 +240,7 @@ class Copter(pygame.sprite.Sprite):
             self.lives -= 1
             self.lastHurtTime = time.time()
             pygame.mixer.Sound.play(self.deathSound)
+            self.controlled = False
         if self.dead():
             self.kill()
             return True
@@ -229,6 +252,13 @@ class Copter(pygame.sprite.Sprite):
 
     def invincible(self):
         return time.time() - self.lastHurtTime < self.INVINCIBILITY_TIME
+
+    def fly(self):
+        self.flying = True
+        self.controlled = True
+
+    def drop(self):
+        self.flying = False
 
 
 class Wall(pygame.sprite.Sprite):
@@ -302,9 +332,11 @@ class Laser(Projectile):
         self.rect = pygame.Rect(pos, (1, 1))
         self.sound = utilities.load_sound('laser.wav')
         self.shootTime = time.time()
+        self.expire = False
 
     def update(self):
-        pass
+        if self.expire and time.time() - self.shootTime > self.LASER_TIME:
+            Projectile.kill(self)
 
     def draw(self, screen):
         t = (time.time() - self.shootTime) / self.LASER_TIME
@@ -313,6 +345,9 @@ class Laser(Projectile):
         color = colors.RED
         pygame.draw.line(screen, color, self.rect.topleft,
                          (geo.Vector2D(*self.pos()) + self.v).tuple(), thickness)
+
+    def kill(self):
+        self.expire = True
 
     @staticmethod
     def collided(left, right):

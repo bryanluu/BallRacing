@@ -535,7 +535,7 @@ class CopterScene(SceneBase):
     GAP_FRACTION = 0.7  # the starting fraction of gap space
     GAP_CLEARANCE = 0.05  # how much clearance gap has between screen borders
     FLUCTUATION = 3  # how much the gap position fluctuates
-    NARROWING_INTERVAL = 5  # how long before the gap narrows
+    NARROWING_INTERVAL = 10  # how long before the gap narrows
     FLUCTUATION_INTERVAL = 5  # how long before gap increases fluctuation
     MAX_FLUCTUATION = 15  # maximum amount of fluctuation
     EXPONENTIAL_GENERATORS = ['bats', 'obstacles', 'powerups', 'balloons']
@@ -548,8 +548,6 @@ class CopterScene(SceneBase):
 
     def __init__(self):
         SceneBase.__init__(self)
-        self.v = geo.Vector2D.zero()
-        self.a = geo.Vector2D(0, 1)
         self.fly = False
         self.rng = np.random.default_rng()
         self.starttime = time.time()
@@ -595,23 +593,14 @@ class CopterScene(SceneBase):
         if self.score > self.highscore:
             self.highscore = self.score
 
-        # check if spacebar
-        self.fly = spacebar
+        # fly if spacebar
+        if spacebar:
+            self.copter.fly()
+        else:
+            self.copter.drop()
 
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
-
-        if self.copter.invincible():
-            self.v = geo.Vector2D.zero()
-        else:
-            # fly logic
-            if self.fly:
-                self.a = geo.Vector2D(0, -1)
-            else:
-                self.a = geo.Vector2D(0, 1)
-
-            self.v += self.a
-            self.copter.rect.move_ip(*self.v)
 
         self.checkOutOfBounds()
 
@@ -762,7 +751,7 @@ class CopterScene(SceneBase):
 
     def spawnObstacle(self):
         gap_pos = self.gap_pos[-1]
-        gap_height = self.gap_height[-1]
+        gap_height = self.gap_lastheight
         roof, ground = gap_pos - gap_height / 2,\
             gap_pos + gap_height / 2
         height = self.rng.random() * 0.4 * gap_height
@@ -773,7 +762,7 @@ class CopterScene(SceneBase):
 
     def spawnBat(self):
         gap_pos = self.gap_pos[-1]
-        gap_height = self.gap_height[-1]
+        gap_height = self.gap_lastheight
         roof, ground = gap_pos - gap_height / 2,\
             gap_pos + gap_height / 2
         y = self.rng.random() * 0.8 * (gap_height - 32) + 1.1 * roof
@@ -784,7 +773,7 @@ class CopterScene(SceneBase):
 
     def spawnBalloon(self):
         gap_pos = self.gap_pos[-1]
-        gap_height = self.gap_height[-1]
+        gap_height = self.gap_lastheight
         roof, ground = gap_pos - gap_height / 2,\
             gap_pos + gap_height / 2
         y = self.rng.random() * 0.6 * gap_height + 1.4 * roof
@@ -795,7 +784,7 @@ class CopterScene(SceneBase):
 
     def spawnPowerup(self):
         gap_pos = self.gap_pos[-1]
-        gap_height = self.gap_height[-1]
+        gap_height = self.gap_lastheight
         roof, ground = gap_pos - gap_height / 2,\
             gap_pos + gap_height / 2
         top = self.rng.random() * 0.6\
@@ -817,7 +806,8 @@ class CopterScene(SceneBase):
             * (screenHeight * (1 - 2 * self.GAP_CLEARANCE - self.GAP_FRACTION)) \
             + screenHeight * (self.GAP_CLEARANCE + 0.5 * self.GAP_FRACTION)
 
-        self.gap_height = np.zeros(N)
+        self.gap_lastheight = gap_height
+        self.gap_heights = np.ones(N) * gap_height
         self.gap_pos = np.zeros(N)
 
         for i in range(N):
@@ -836,30 +826,34 @@ class CopterScene(SceneBase):
                 self.copterIndex = i
             self.walls.add(top)
             self.walls.add(bottom)
-            self.gap_height[i] = gap_height
             self.gap_pos[i] = gap_pos
+
+        print(self.gap_pos)
 
     def generateWall(self, top=True):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        if top == 0:
+        if top:
             if (time.time() - self.lastnarrow) >= self.NARROWING_INTERVAL:
-                self.gap_height[0] = max(0.95 * self.gap_height[-1], 3 * self.copter.rect.height)
+                self.gap_lastheight = max(0.95 * self.gap_lastheight, 3 * self.copter.rect.height)
+                self.gap_heights[0] = self.gap_lastheight
                 self.lastnarrow = time.time()
             if (time.time() - self.lastfluct) >= self.FLUCTUATION_INTERVAL:
                 self.FLUCTUATION = min(self.FLUCTUATION + 1, self.MAX_FLUCTUATION)
                 self.lastfluct = time.time()
             self.gap_pos[0] = self.gap_pos[-1] + self.FLUCTUATION * self.rng.standard_normal()
-            self.gap_pos[0] = utilities.bound(self.gap_height[-1] / 2 + self.GAP_CLEARANCE * screenHeight,
-                                 self.gap_pos[-1],
-                                 (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_height[-1] / 2)
-            new = copter.Wall(0, round(self.gap_pos[0] - self.gap_height[0]/2))
+            self.gap_pos[0] = utilities.bound(self.gap_lastheight / 2 + self.GAP_CLEARANCE * screenHeight,
+                                 self.gap_pos[0],
+                                 (1 - self.GAP_CLEARANCE) * screenHeight - self.gap_lastheight / 2)
+            self.gap_heights[0] = self.gap_lastheight
+            # roll gap arrays
+            self.gap_pos = np.roll(self.gap_pos, -1)
+            self.gap_heights = np.roll(self.gap_heights, -1)
+            new = copter.Wall(0, round(self.gap_pos[-1] - self.gap_lastheight/2))
         else:
-            new = copter.Wall(round(self.gap_pos[-1] + self.gap_height[-1]/2), screenHeight - round(self.gap_pos[-1] + self.gap_height[-1]/2))
-        # roll gap arrays
-        self.gap_pos = np.roll(self.gap_pos, -1)
-        self.gap_height = np.roll(self.gap_height, -1)
+            new = copter.Wall(round(self.gap_pos[-1] + self.gap_lastheight/2), screenHeight - round(self.gap_pos[-1] + self.gap_lastheight/2))
+
         return new
 
     def checkOutOfBounds(self):

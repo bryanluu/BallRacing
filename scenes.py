@@ -103,15 +103,15 @@ class Button(pygame.sprite.Sprite):
         self.passive_textcolor = passive_textcolor
 
     def update(self):
-        mouse = pygame.mouse.get_pos()
-        pressed = pygame.mouse.get_pressed()
+        mouseX, mouseY = pygame.mouse.get_pos()
+        pressed = pygame.mouse.get_pressed()[0]
 
-        if self.rect.x <= mouse[0] <= self.rect.x + self.rect.w \
-                and self.rect.y <= mouse[1] <= self.rect.y + self.rect.h:
+        if self.rect.x <= mouseX <= self.rect.x + self.rect.w \
+                and self.rect.y <= mouseY <= self.rect.y + self.rect.h:
             self.image.fill(self.active_color)
             self.renderButtonText(self.active_text, self.active_textcolor)
 
-            if pressed[0]:
+            if pressed:
                 self.action()
         else:
             self.image.fill(self.passive_color)
@@ -797,7 +797,7 @@ class CopterScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
         # number of walls
-        N = int(np.ceil(screenWidth / copter.Wall.WIDTH)) + 2
+        N = int(np.ceil(screenWidth / copter.Wall.WIDTH)) + 3
 
         # generate walls
         gap_height = self.GAP_FRACTION * screenHeight
@@ -808,24 +808,42 @@ class CopterScene(SceneBase):
         self.gap_lastheight = gap_height
         self.gap_heights = np.ones(N) * gap_height
         self.gap_pos = np.zeros(N)
+        self.gap_pos[0] = gap_pos
 
-        for i in range(N):
+        gap_roof = round(gap_pos - gap_height / 2)
+        gap_floor = round(gap_pos + gap_height / 2)
+
+        for i in range(1, N):
             gap_pos += self.FLUCTUATION * self.rng.standard_normal()
             gap_pos = utilities.bound(
                 gap_height / 2 + self.GAP_CLEARANCE * screenHeight,
                 gap_pos,
                 (1 - self.GAP_CLEARANCE) * screenHeight - gap_height / 2)
-            top = copter.Wall(0, round(gap_pos - gap_height / 2))
-            bottom = copter.Wall(round(gap_pos + gap_height / 2),
-                                 screenHeight - round(gap_pos + gap_height / 2))
+
+            self.gap_pos[i] = gap_pos
+
+        for i in range(N - 1):
+            last_gap_roof = gap_roof
+            last_gap_floor = gap_floor
+            gap_roof = round(self.gap_pos[i] - self.gap_heights[i] / 2)
+            gap_floor = round(self.gap_pos[i] + self.gap_heights[i] / 2)
+            next_gap_roof = round(self.gap_pos[i+1] - self.gap_heights[i+1] / 2)
+            next_gap_floor = round(self.gap_pos[i+1] + self.gap_heights[i+1] / 2)
+
+            NW, NE, SW, SE = 0, 0,\
+                round((last_gap_roof + gap_roof) / 2), round((gap_roof + next_gap_roof) / 2)
+            top = copter.Wall(NW, NE, SE, SW)
+            NW, NE, SW, SE = round((last_gap_floor + gap_floor) / 2),\
+                round((gap_floor + next_gap_floor) / 2),\
+                screenHeight, screenHeight
+            bottom = copter.Wall(NW, NE, SE, SW)
             x = i * copter.Wall.WIDTH
-            top.rect.left = x
-            bottom.rect.left = x
+            top.rect.x = x
+            bottom.rect.x = x
             if abs(x - self.copter.rect.x) < copter.Wall.WIDTH:
                 self.copterIndex = i
             self.walls.add(top)
             self.walls.add(bottom)
-            self.gap_pos[i] = gap_pos
 
     def generateWall(self, top=True):
         info = pygame.display.Info()
@@ -847,9 +865,28 @@ class CopterScene(SceneBase):
             # roll gap arrays
             self.gap_pos = np.roll(self.gap_pos, -1)
             self.gap_heights = np.roll(self.gap_heights, -1)
-            new = copter.Wall(0, round(self.gap_pos[-1] - self.gap_lastheight/2))
+
+        def roof(index):
+            return round(self.gap_pos[index] - self.gap_heights[index] / 2)
+
+        def floor(index):
+            return round(self.gap_pos[index] + self.gap_heights[index] / 2)
+        last_gap_roof = roof(-3)
+        last_gap_floor = floor(-3)
+        gap_roof = roof(-2)
+        gap_floor = floor(-2)
+        next_gap_roof = roof(-1)
+        next_gap_floor = floor(-1)
+
+        if top:
+            NW, NE, SW, SE = 0, 0,\
+                round((last_gap_roof + gap_roof) / 2),\
+                round((gap_roof + next_gap_roof) / 2)
         else:
-            new = copter.Wall(round(self.gap_pos[-1] + self.gap_lastheight/2), screenHeight - round(self.gap_pos[-1] + self.gap_lastheight/2))
+            NW, NE, SW, SE = round((last_gap_floor + gap_floor) / 2),\
+                round((gap_floor + next_gap_floor) / 2),\
+                screenHeight, screenHeight
+        new = copter.Wall(NW, NE, SE, SW)
 
         return new
 

@@ -271,18 +271,25 @@ class Wall(pygame.sprite.Sprite):
     SPEED = 10
 
     # Constructor. Pass in the color of the block,
-    # and its x and y position
-    def __init__(self, top, height):
+    # and its four corners as y-coords
+    # with the order being NW-NE-SE-SW
+    def __init__(self, yNW, yNE, ySE, ySW):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
 
-        info = pygame.display.Info()
-        screenWidth = info.current_w
-
-        self.rect = pygame.Rect(screenWidth, top, Wall.WIDTH, height)
+        top = min(yNW, yNE)
+        bottom = max(ySW, ySE)
+        height = bottom - top
 
         self.image = pygame.Surface([Wall.WIDTH, height])
-        self.image.fill(Wall.COLOR)
+        NW, NE, SE, SW = (0, yNW - top),\
+            (Wall.WIDTH, yNE - top), (Wall.WIDTH, ySE - top), (0, ySW - top)
+        self.rect = pygame.draw.polygon(self.image,
+                                        Wall.COLOR,
+                                        [NW, NE, SE, SW])
+        info = pygame.display.Info()
+        screenWidth = info.current_w
+        self.rect.x, self.rect.y = screenWidth, top
 
     def update(self):
         self.rect.left -= Wall.SPEED

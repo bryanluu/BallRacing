@@ -408,6 +408,7 @@ class Enemy(pygame.sprite.Sprite):
 
 class Bat(Enemy):
     AWARD = 5  # award in seconds after kill
+    CLEARANCE = 5  # space between bat and nearest wall
 
     # Constructor. Pass in the color of the block,
     # and its x and y position
@@ -438,11 +439,15 @@ class Bat(Enemy):
         self.y = float(self.rect.y)
         self.speed = Wall.SPEED * 1.2
 
+    def fly(self, roof, ground):
+        self.y = utilities.bound(roof + self.CLEARANCE,
+                                 self.y + np.random.normal(),
+                                 ground - self.rect.height - self.CLEARANCE)
+        self.rect.y = int(self.y)
+
     def update(self):
         self.x -= self.speed
-        self.y += np.random.mtrand.standard_normal()
         self.rect.x = int(self.x)
-        self.rect.y = int(self.y)
         self.image = self.strips.next()
 
 

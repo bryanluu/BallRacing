@@ -626,6 +626,21 @@ class CopterScene(SceneBase):
                 self.lastUpdateTime[generator] = now
 
         for ob in self.obstacles:
+            # if obstacle is a bat, fly the bat
+            if type(ob) is copter.Bat:
+                nearestWalls = []
+                for wall in self.walls:
+                    batX = ob.rect.x
+                    wallX = wall.rect.x
+                    if abs(batX - wallX) <= copter.Wall.WIDTH:
+                        nearestWalls.append(wall)
+                        if len(nearestWalls) == 2:
+                            break
+                if len(nearestWalls) > 0:
+                    top, bottom = sorted(nearestWalls,
+                                         key=lambda wall: wall.rect.y)
+                    roof, ground = top.rect.bottom, bottom.rect.top
+                    ob.fly(roof, ground)
             # if obstacle flies off-screen, delete it
             if self.isOutOfBounds(ob.rect):
                 ob.kill()
@@ -790,7 +805,7 @@ class CopterScene(SceneBase):
             * (gap_height - copter.Powerup.SIDE_LENGTH)\
             + roof + 0.2 * gap_height
         powerupType = copter.PowerupType(int(self.rng.random() * copter.PowerupType.NUMBER_POWERUPS.value))
-        powerup = copter.Powerup(top, copter.PowerupType.ONE_UP)
+        powerup = copter.Powerup(top, powerupType)
         self.powerups.add(powerup)
 
     def generateWalls(self):

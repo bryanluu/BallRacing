@@ -28,6 +28,7 @@ class Copter(pygame.sprite.Sprite):
     SHIELD_LOOP_TIME = 0.7  # time between transparency loops
     INVINCIBILITY_TIME = 1  # time of invincibility after copter is hurt
     WEIGHT = 0.8  # affects acceleration
+    ENGINE_STARTUP_TIME = 0.5  # time for the engine to rev up
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
@@ -50,6 +51,7 @@ class Copter(pygame.sprite.Sprite):
         self.a = geo.Vector2D.zero()
         self.flying = False
         self.controlled = True
+        self.lastFlyTime = 0
 
         self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
                                                 (0, 0, 423, 150), (1, 4),
@@ -57,6 +59,7 @@ class Copter(pygame.sprite.Sprite):
                                                 frames=1,
                                                 loop=True)
         self.strips.iter()
+        self.image = self.strips.next()
         self.setCopterImage()
         self.rect = self.image.get_rect()
         self.rect.center = pos
@@ -126,7 +129,25 @@ class Copter(pygame.sprite.Sprite):
         self.rect.move_ip(*self.v)
 
     def setCopterImage(self):
-        self.image = pygame.transform.scale(self.strips.next(), (85, 30))
+        if not self.controlled:
+            self.strips.frames = 2
+            nextImage = self.strips.next()
+        else:
+            if self.flying:
+                T = time.time() - self.lastFlyTime
+                if T < self.ENGINE_STARTUP_TIME:
+                    # t goes from 0 to 1
+                    t = T / self.ENGINE_STARTUP_TIME
+                    start = 2
+                    end = 1
+                    # linear ramp from start to end
+                    frames = round(end + (start - end) * (1 - t))
+                    self.strips.frames = frames
+                nextImage = self.strips.next()
+            else:
+                nextImage = self.image  # stop animation
+
+        self.image = pygame.transform.scale(nextImage, (85, 30))
 
         if self.invincible():
             alpha = 100
@@ -141,6 +162,9 @@ class Copter(pygame.sprite.Sprite):
             # construct linear ramp of alpha values for copter
             alpha = 255 - (1 - t) * (255 - 100)
             self.image.set_alpha(alpha)
+        else:
+            # set opaque
+            self.image.set_alpha(255)
 
     def shoot(self):
         if self.ammo <= 0:
@@ -258,8 +282,10 @@ class Copter(pygame.sprite.Sprite):
         return time.time() - self.lastHurtTime < self.INVINCIBILITY_TIME
 
     def fly(self):
-        self.flying = True
-        self.controlled = True
+        if not self.flying:
+            self.flying = True
+            self.controlled = True
+            self.lastFlyTime = time.time()
 
     def drop(self):
         self.flying = False

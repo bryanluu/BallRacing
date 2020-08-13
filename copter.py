@@ -11,7 +11,8 @@ class PowerupType(Enum):
     GUN_BOOST = 0  # grants moderate speed boost to the gun
     SHIELD = 1  # grants temporary immunity to obstacles
     LASER = 2  # grants the ability to shoot a laser
-    NUMBER_POWERUPS = 3  # number of valid powerups
+    ONE_UP = 3  # increases lives by 1
+    NUMBER_POWERUPS = 4  # number of valid powerups
 
 
 class Weapon(Enum):
@@ -205,20 +206,23 @@ class Copter(pygame.sprite.Sprite):
         lastWeapon = self.weapon  # save weapon before activation
         self.deactivatePower()  # reset defaults first
         if self.hasPower():
+            self.powerActive = True
+            self.lastPowerupTime = time.time()
+            self.power.startTimeLeft = self.power.timeLeft
             if self.hasPower(PowerupType.GUN_BOOST):
                 if lastWeapon != Weapon.MACHINE_GUN or lastAmmo == self.DEFAULT_AMMO:
                     self.ammo = self.power.ammo
                 else:
                     self.ammo = lastAmmo + self.power.ammo
-            if self.hasPower(PowerupType.LASER):
+            elif self.hasPower(PowerupType.LASER):
                 self.weapon = Weapon.LASER
                 if lastWeapon != Weapon.LASER or lastAmmo == self.DEFAULT_AMMO:
                     self.ammo = self.power.ammo
                 else:
                     self.ammo = lastAmmo + self.power.ammo
-            self.powerActive = True
-            self.lastPowerupTime = time.time()
-            self.power.startTimeLeft = self.power.timeLeft
+            elif self.hasPower(PowerupType.ONE_UP):
+                self.lives += 1
+                self.removePower()
 
     # deactivates powerup if the car has one
     def deactivatePower(self):
@@ -551,6 +555,8 @@ class Powerup(pygame.sprite.Sprite):
         elif type == PowerupType.LASER:
             self.color = colors.RED
             self.ammo = 1
+        elif type == PowerupType.ONE_UP:
+            self.color = colors.GREEN
 
         self.timeLeft = self.duration
         self.startTimeLeft = self.timeLeft

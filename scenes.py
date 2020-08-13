@@ -619,9 +619,10 @@ class CopterScene(SceneBase):
             # if time to generate is reached
             if self.timeUntilGeneration[generator] <= 0:
                 self.spawn(generator)
-            else: # remove time from generator
+            else:  # remove time from generator
                 now = time.time()
-                self.timeUntilGeneration[generator] -= now - self.lastUpdateTime[generator]
+                self.timeUntilGeneration[generator] -= now\
+                    - self.lastUpdateTime[generator]
                 self.lastUpdateTime[generator] = now
 
         for ob in self.obstacles:
@@ -635,11 +636,7 @@ class CopterScene(SceneBase):
                 pup.kill()
 
         # Powerups collision
-        powerupsHit = pygame.sprite.spritecollide(self.copter,
-                                                  self.powerups, True,
-                                                  collided=pygame.sprite.collide_rect)
-        for power in powerupsHit:
-            self.copter.givePower(power)
+        self.checkPowerupsHit()
 
         if click[0]:
             if self.copter.readyToShoot():
@@ -647,11 +644,6 @@ class CopterScene(SceneBase):
                 self.projectiles.add(bullet)
 
         for p in self.projectiles:
-            if type(p) is copter.Laser:
-                if time.time() - self.copter.lastShootTime\
-                        >= copter.Laser.LASER_TIME:
-                    p.kill()
-
             # if projectile flies off-screen
             if self.isOutOfBounds(p.rect):
                 p.kill()
@@ -724,6 +716,13 @@ class CopterScene(SceneBase):
 
         return float(score)
 
+    def checkPowerupsHit(self):
+        powerupsHit = pygame.sprite.spritecollide(self.copter,
+                                                  self.powerups, True,
+                                                  collided=pygame.sprite.collide_rect)
+        for power in powerupsHit:
+            self.copter.givePower(power)
+
     def checkProjectileHit(self, projectile):
         if type(projectile) is not copter.Laser:
             collided_objects = pygame.sprite.spritecollide(projectile, self.walls, False, collided=pygame.sprite.collide_rect)
@@ -791,7 +790,7 @@ class CopterScene(SceneBase):
             * (gap_height - copter.Powerup.SIDE_LENGTH)\
             + roof + 0.2 * gap_height
         powerupType = copter.PowerupType(int(self.rng.random() * copter.PowerupType.NUMBER_POWERUPS.value))
-        powerup = copter.Powerup(top, powerupType)
+        powerup = copter.Powerup(top, copter.PowerupType.ONE_UP)
         self.powerups.add(powerup)
 
     def generateWalls(self):
@@ -827,8 +826,6 @@ class CopterScene(SceneBase):
             self.walls.add(top)
             self.walls.add(bottom)
             self.gap_pos[i] = gap_pos
-
-        print(self.gap_pos)
 
     def generateWall(self, top=True):
         info = pygame.display.Info()

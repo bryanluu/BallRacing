@@ -626,6 +626,7 @@ class CopterScene(SceneBase):
         self.projectiles = pygame.sprite.Group()
         self.obstacles = pygame.sprite.Group()
         self.powerups = pygame.sprite.Group()
+        self.explosions = pygame.sprite.Group()
         self.score = 0
         self.timeUntilGeneration = {generator: self.rng.exponential(self.SPAWN_INTERVAL[generator])
                                     for generator in self.EXPONENTIAL_GENERATORS}
@@ -738,6 +739,7 @@ class CopterScene(SceneBase):
         self.obstacles.update()
         self.powerups.update()
         self.projectiles.update()
+        self.explosions.update()
 
     def Render(self):
         self.screen.fill((255, 255, 255))
@@ -745,6 +747,10 @@ class CopterScene(SceneBase):
         self.obstacles.draw(self.screen)
         self.powerups.draw(self.screen)
         self.walls.draw(self.screen)
+        self.explosions.draw(self.screen)
+
+        for exp in self.explosions:
+            exp.draw(self.screen)
 
         for p in self.projectiles:
             p.draw(self.screen)
@@ -985,13 +991,10 @@ class CopterScene(SceneBase):
             self.EndGame()
 
     def checkCollisions(self):
-        dead = False
         for wall in pygame.sprite.spritecollide(self.copter, self.walls,
                                                 False, collided=pygame.sprite.collide_mask):
             if not self.copter.invincible():
-                dead = self.copter.hurt()
-                if not dead:
-                    self.copter.rect.top = self.gap_pos[self.copterIndex]
+                self.takeCopterLife()
             break
 
         for ob in pygame.sprite.spritecollide(self.copter, self.obstacles,
@@ -1000,13 +1003,17 @@ class CopterScene(SceneBase):
                 ob.destroy()
             else:
                 if not self.copter.invincible():
-                    dead = self.copter.hurt()
-                    if not dead:
-                        self.copter.rect.top = self.gap_pos[self.copterIndex]
+                    self.takeCopterLife()
             break
 
+    def takeCopterLife(self):
+        dead = self.copter.hurt()
+        explosion = copter.Explosion(self.copter.rect.center)
+        self.explosions.add(explosion)
         if dead:
             self.EndGame()
+        else:
+            self.copter.rect.top = self.gap_pos[self.copterIndex]
 
     def isOutOfBounds(self, rect):
         info = pygame.display.Info()

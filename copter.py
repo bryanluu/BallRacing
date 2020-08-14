@@ -37,7 +37,6 @@ class Copter(pygame.sprite.Sprite):
         self.angle = 0
         self.weapon = self.DEFAULT_WEAPON
         self.lastShootTime = 0
-        self.deathSound = utilities.load_sound('bomb.wav')
         self.ammo = self.DEFAULT_AMMO
         self.powerupText = pygame.font.SysFont('arial', 12)
         self.lives = 3
@@ -55,7 +54,6 @@ class Copter(pygame.sprite.Sprite):
 
         self.strips = utilities.SpriteStripAnim('helicopter-spritesheet.png',
                                                 (0, 0, 423, 150), (1, 4),
-                                                colorkey=-1,
                                                 frames=1,
                                                 loop=True)
         self.strips.iter()
@@ -270,7 +268,6 @@ class Copter(pygame.sprite.Sprite):
         if not self.dead():
             self.lives -= 1
             self.lastHurtTime = time.time()
-            pygame.mixer.Sound.play(self.deathSound)
             self.controlled = False
         if self.dead():
             self.kill()
@@ -292,6 +289,56 @@ class Copter(pygame.sprite.Sprite):
 
     def drop(self):
         self.flying = False
+
+    def explode(self):
+        pygame.mixer.Sound.play(self.deathSound)
+
+        strips = utilities.SpriteStripAnim('explosion.png',
+                                           (0, 0, 256, 256),
+                                           (8, 7),
+                                           frames=1)
+        strips.iter()
+
+        return strips
+
+
+class Explosion(pygame.sprite.Sprite):
+    SOUNDFILE = 'bomb.wav'
+    SPRITESHEET = 'explosion.png'
+    SIZE = (256, 256)
+    COUNT = (8, 7)
+
+    def __init__(self, pos):
+        # Call the parent class (Sprite) constructor
+        pygame.sprite.Sprite.__init__(self)
+
+        self.sound = utilities.load_sound(self.SOUNDFILE)
+
+        pygame.mixer.Sound.play(self.sound)
+
+        self.strips = utilities.SpriteStripAnim(self.SPRITESHEET,
+                                                (0, 0,
+                                                 self.SIZE[0],
+                                                 self.SIZE[1]),
+                                                self.COUNT,
+                                                frames=1,
+                                                colorkey=-1)
+        self.strips.iter()
+        self.image = self.strips.next()
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+
+    def draw(self, screen):
+        self.image = self.strips.next()
+        screen.blit(self.image, self.rect)
+
+    def update(self):
+        if self.strips.i >= len(self.strips.images):
+            self.kill()
+        elif self.rect.right < 0:
+            self.kill()
+        else:
+            self.rect.x -= Wall.SPEED
 
 
 class Wall(pygame.sprite.Sprite):

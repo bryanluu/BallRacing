@@ -988,7 +988,7 @@ class CopterScene(SceneBase):
     def checkCollisions(self):
         dead = False
         for wall in pygame.sprite.spritecollide(self.copter, self.walls,
-                                                    False, collided=pygame.sprite.collide_rect):
+                                                False, collided=pygame.sprite.collide_mask):
             if not self.copter.invincible():
                 dead = self.copter.hurt()
                 if not dead:
@@ -996,7 +996,7 @@ class CopterScene(SceneBase):
             break
 
         for ob in pygame.sprite.spritecollide(self.copter, self.obstacles,
-                                                    False, collided=pygame.sprite.collide_rect):
+                                              False, collided=pygame.sprite.collide_rect):
             if self.copter.hasPower(copter.PowerupType.SHIELD):
                 ob.destroy()
             else:

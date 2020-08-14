@@ -533,6 +533,7 @@ class Balloon(Enemy):
             self.floatspeed = 2
             self.AWARD = 10
         self.image = pygame.transform.scale(self.image, (15, 30))
+        self.image.set_colorkey(colors.WHITE)
 
         # Fetch the rectangle object that has the dimensions of the image
         # Update the position of this object by setting the values of rect.x and rect.y

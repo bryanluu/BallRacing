@@ -176,16 +176,19 @@ class Copter(pygame.sprite.Sprite):
             ball_speed = 20
             power = 1
 
-            ball = Bullet(pos, geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)), -power * ball_speed * np.sin(np.radians(self.angle))))
+            ball = Bullet(pos,
+                          geo.Vector2D(power * ball_speed * np.cos(np.radians(self.angle)),
+                                       -power * ball_speed * np.sin(np.radians(self.angle))))
 
-            pygame.mixer.Sound.play(ball.sound)
         elif self.weapon == Weapon.LASER:
             info = pygame.display.Info()
             screenWidth, screenHeight = info.current_w, info.current_h
 
-            ball = Laser(pos, geo.Vector2D(2 * screenWidth * np.cos(np.radians(self.angle)), -2 * screenHeight * np.sin(np.radians(self.angle))))
+            ball = Laser(pos,
+                         geo.Vector2D(2 * screenWidth * np.cos(np.radians(self.angle)),
+                                      -2 * screenHeight * np.sin(np.radians(self.angle))))
 
-            pygame.mixer.Sound.play(ball.sound)
+        pygame.mixer.Sound.play(ball.sound)
 
         self.ammo -= 1
         self.lastShootTime = time.time()
@@ -329,6 +332,7 @@ class Projectile(pygame.sprite.Sprite):
 
         self.v = velocity
         self.initGraphics(pos)
+        self.lastPos = pos
 
     def initGraphics(self, pos):
         self.image = pygame.Surface((5, 5))
@@ -345,11 +349,28 @@ class Projectile(pygame.sprite.Sprite):
         return None
 
     def update(self):
+        self.lastPos = self.pos()
         self.rect.move_ip(*self.v)
 
     @staticmethod
-    def collided(left, right):
-        return pygame.sprite.collide_rect(left, right)
+    def collided(projectile, other):
+        overlap = pygame.sprite.collide_mask(projectile, other)
+
+        if not overlap:
+            topline = geo.Vector2D(*other.rect.topleft)\
+                - geo.Vector2D(*projectile.lastPos)
+            bottomline = geo.Vector2D(*other.rect.bottomleft)\
+                - geo.Vector2D(*projectile.lastPos)
+
+            aimedAtOther = geo.Vector2D.angle_between(projectile.v, topline)\
+                < 0 < geo.Vector2D.angle_between(projectile.v, bottomline)
+
+            validPos = projectile.lastPos[0] <= other.rect.right\
+                and projectile.pos()[0] >= other.rect.left
+
+            passedThrough = aimedAtOther and validPos
+
+        return overlap or passedThrough
 
 
 class Bullet(Projectile):
@@ -357,6 +378,7 @@ class Bullet(Projectile):
     def initGraphics(self, pos):
         self.image = utilities.load_image('ball.png')
         self.image = pygame.transform.scale(self.image, (5, 5))
+        self.image.set_colorkey(colors.WHITE)
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.sound = utilities.load_sound('bullet.wav')
@@ -387,14 +409,14 @@ class Laser(Projectile):
         self.expire = True
 
     @staticmethod
-    def collided(left, right):
+    def collided(laser, other):
 
-        topline = geo.Vector2D(*right.rect.topleft) - geo.Vector2D(*left.pos())
-        bottomline = geo.Vector2D(*right.rect.bottomleft)\
-            - geo.Vector2D(*left.pos())
+        topline = geo.Vector2D(*other.rect.topleft) - geo.Vector2D(*laser.pos())
+        bottomline = geo.Vector2D(*other.rect.bottomleft)\
+            - geo.Vector2D(*laser.pos())
 
-        if geo.Vector2D.angle_between(left.v, topline)\
-                < 0 < geo.Vector2D.angle_between(left.v, bottomline):
+        if geo.Vector2D.angle_between(laser.v, topline)\
+                < 0 < geo.Vector2D.angle_between(laser.v, bottomline):
             return True
         else:
             return False

@@ -837,8 +837,7 @@ class CopterScene(SceneBase):
         gap_height = self.gap_lastheight
         roof, ground = gap_pos - gap_height / 2,\
             gap_pos + gap_height / 2
-        height = self.rng.random() * 0.4 * gap_height
-        height = utilities.bound(copter.Obstacle.MIN_HEIGHT, height, height)
+        height = copter.Obstacle.MIN_HEIGHT + self.rng.random() * 0.4 * gap_height
         top = self.rng.random() * (gap_height - height) + roof
         obstacle = copter.Obstacle(top, height)
         self.obstacles.add(obstacle)

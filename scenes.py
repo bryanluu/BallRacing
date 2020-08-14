@@ -35,11 +35,14 @@ class SceneBase:
 
 
 class Start(SceneBase):
+    BUTTON_DELAY = 0.15
+
     def __init__(self):
         SceneBase.__init__(self)
 
         self.options = ['Drive', 'Copter', 'Quit']
         self.buttons = pygame.sprite.Group()
+        self.startTime = time.time()
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
@@ -74,7 +77,8 @@ class Start(SceneBase):
         pass
 
     def Update(self):
-        self.buttons.update()
+        if time.time() - self.startTime > self.BUTTON_DELAY:
+            self.buttons.update()
 
     def Render(self):
         self.screen.fill(colors.WHITE)
@@ -126,17 +130,85 @@ class Button(pygame.sprite.Sprite):
         self.image.blit(textsurf, textrect)
 
 
+class CheckExit(SceneBase):
+    def __init__(self, paused):
+        SceneBase.__init__(self)
+        self.next = self
+        self.paused = paused
+        self.options = ["Yes", "No"]
+        self.buttons = pygame.sprite.Group()
+
+    # only needs to be called once throughout main loop
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+        self.screen = self.paused.screen
+        self.background = pygame.Surface([self.screen.get_width(),
+                                         self.screen.get_height()],
+                                         flags=pygame.SRCALPHA)
+        self.background.fill([255, 255, 255, 180])  # translucent white bg
+        self.screen.blit(self.background, self.background.get_rect())
+        self.warningText = pygame.font.SysFont('Arial', 25)
+        font = pygame.font.Font('freesansbold.ttf', 20)
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        for i, option in enumerate(self.options):
+            rect = pygame.Rect(int(screenWidth / 2) - 50,
+                               int(screenHeight / 2 - 75) + i * 50,
+                               100, 30)
+            passive_color = colors.BLACK
+            active_color = colors.RED
+
+            if i == 0:
+                def action():
+                    self.SwitchToScene(Start())
+            else:
+                def action():
+                    self.SwitchToScene(self.paused)
+                    self.paused.next = self.paused
+
+            button = Button(rect, action, font, active_color, option, colors.WHITE, passive_color, option, colors.WHITE)
+
+            self.buttons.add(button)
+
+    def ProcessInput(self, events, pressed_keys):
+        pass
+
+    def Update(self):
+        self.buttons.update()
+
+    def Render(self):
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+        promptSurf = self.warningText.render("Quit without saving?",
+                                             True, (0, 0, 0))
+        promptRect = promptSurf.get_rect()
+        promptRect.center = screenWidth / 2, 50
+        self.screen.blit(promptSurf, promptRect)
+
+        self.buttons.draw(self.screen)
+        pygame.display.flip()
+
+
 class Pause(SceneBase):
     def __init__(self, paused):
         SceneBase.__init__(self)
         self.next = self
         self.paused = paused
         self.options = ["Resume", "Quit"]
+        self.buttons = pygame.sprite.Group()
 
     # only needs to be called once throughout main loop
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
-        self.pauseText = pygame.font.Font('freesansbold.ttf', 25)
+        self.screen = self.paused.screen
+        self.background = pygame.Surface([self.screen.get_width(),
+                                         self.screen.get_height()],
+                                         flags=pygame.SRCALPHA)
+        self.background.fill([255, 255, 255, 180])  # translucent white bg
+        self.screen.blit(self.background, self.background.get_rect())
+        self.pauseText = pygame.font.SysFont('Arial', 25)
         font = pygame.font.Font('freesansbold.ttf', 20)
 
         info = pygame.display.Info()
@@ -174,9 +246,6 @@ class Pause(SceneBase):
         self.buttons.update()
 
     def Render(self):
-        self.screen.fill(colors.WHITE)
-        self.screen.set_alpha(100)
-
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
         promptSurf = self.pauseText.render("PAUSED", True, (0, 0, 0))

@@ -10,7 +10,7 @@ def run_game(width, height, fps, starting_scene):
     clock = pygame.time.Clock()
 
     active_scene = starting_scene
-
+    paused = None
 
     while active_scene:
 
@@ -31,11 +31,19 @@ def run_game(width, height, fps, starting_scene):
                               pressed_keys[pygame.K_RALT]
                 if event.key == pygame.K_ESCAPE:
                     quit_attempt = True
-                elif event.key == pygame.K_F4 and alt_pressed:
-                    quit_attempt = True
 
             if quit_attempt:
-                active_scene.Terminate()
+                if isinstance(active_scene, DrivingScene)\
+                        or isinstance(active_scene, CopterScene):
+                    paused = active_scene
+                    active_scene.SwitchToScene(CheckExit(paused))
+                elif isinstance(active_scene, CheckExit):
+                    active_scene.SwitchToScene(paused)
+                    paused.next = paused
+                elif isinstance(active_scene, Pause):
+                    active_scene.next = Start()
+                else:
+                    active_scene.Terminate()
             else:
                 filtered_events.append(event)
 

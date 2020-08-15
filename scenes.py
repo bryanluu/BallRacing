@@ -281,7 +281,7 @@ class DrivingScene(SceneBase):
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
-        self.cars = pygame.sprite.Group()
+        self.cars = utilities.DrawGroup()
         self.player = driving.Car((10, screenHeight / 2), -90, colors.RED)
         self.cars.add(self.player)
         cpu = driving.Car((50, screenHeight / 2), -90, colors.BLUE, isCPU=True)
@@ -292,9 +292,9 @@ class DrivingScene(SceneBase):
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
-        self.powerups = pygame.sprite.Group()
+        self.powerups = utilities.DrawGroup()
 
-        self.terrain = pygame.sprite.Group()
+        self.terrain = utilities.DrawGroup()
         mid_grass = driving.Grass((screenWidth / 2, screenHeight / 2),
                           0.8 * screenWidth, 0.8 * screenHeight)
         self.terrain.add(mid_grass)
@@ -435,9 +435,7 @@ class DrivingScene(SceneBase):
         self.screen.fill(colors.GRAY)
         self.terrain.draw(self.screen)
         self.powerups.draw(self.screen)
-
-        for car in self.cars:
-            car.draw(self.screen)
+        self.cars.draw(self.screen)
 
         if not self.started:
             timeElapsed = time.time() - self.startTime
@@ -623,10 +621,10 @@ class CopterScene(SceneBase):
         self.lastnarrow = self.starttime
         self.lastfluct = self.starttime
         self.highscore = self.loadScore(self.SAVE_FILE)
-        self.projectiles = pygame.sprite.Group()
-        self.obstacles = pygame.sprite.Group()
-        self.powerups = pygame.sprite.Group()
-        self.explosions = pygame.sprite.Group()
+        self.projectiles = utilities.DrawGroup()
+        self.obstacles = utilities.DrawGroup()
+        self.powerups = utilities.DrawGroup()
+        self.explosions = utilities.DrawGroup()
         self.score = 0
         self.timeUntilGeneration = {generator: self.rng.exponential(self.SPAWN_INTERVAL[generator])
                                     for generator in self.EXPONENTIAL_GENERATORS}
@@ -640,7 +638,7 @@ class CopterScene(SceneBase):
 
         self.copter = copter.Copter([screenWidth / 4, screenHeight / 2])
 
-        self.walls = pygame.sprite.Group()
+        self.walls = utilities.DrawGroup()
         self.generateWalls()
 
         self.scoreText = pygame.font.Font('freesansbold.ttf', 20)
@@ -748,12 +746,7 @@ class CopterScene(SceneBase):
         self.powerups.draw(self.screen)
         self.walls.draw(self.screen)
         self.explosions.draw(self.screen)
-
-        for exp in self.explosions:
-            exp.draw(self.screen)
-
-        for p in self.projectiles:
-            p.draw(self.screen)
+        self.projectiles.draw(self.screen)
 
         scoreSurf = self.scoreText.render("Time: {0:.2f}".format(self.score), True, (0, 0, 0))
         scoreRect = scoreSurf.get_rect()

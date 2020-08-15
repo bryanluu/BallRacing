@@ -17,7 +17,7 @@ class PowerupType(Enum):
     NUMBER_POWERUPS = 6  # number of valid powerups
 
 
-class Car(pygame.sprite.Sprite):
+class Car(utilities.DrawSprite):
     MAX_FWD_SPEED = 7
     MAX_REV_SPEED = 5
     DEFAULT_MAX_FWD_SPEED = 7
@@ -32,7 +32,7 @@ class Car(pygame.sprite.Sprite):
     TRAIL_LENGTH = 10
 
     def __init__(self, pos, angle, color, isCPU=False):
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         # initialize RNG for randomizer
         self.rng = np.random.default_rng()
@@ -219,7 +219,7 @@ class Car(pygame.sprite.Sprite):
         self.powerActive = False
 
 
-class Powerup(pygame.sprite.Sprite):
+class Powerup(utilities.DrawSprite):
     DEFAULT_LOOP_TIME = 2  # default time that the powerup loops through types
     DEFAULT_LOOP_SPREAD = 0.5  # spread of loop times
     MIN_LOOP_TIME = 0.5  # minimum loop time
@@ -227,7 +227,7 @@ class Powerup(pygame.sprite.Sprite):
     DEFAULT_DURATION = 2  # time that the powerup lasts for
 
     def __init__(self, pos, type, switch=True):
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         # initialize RNG for randomizer
         self.rng = np.random.default_rng()
@@ -292,9 +292,9 @@ class Powerup(pygame.sprite.Sprite):
         screen.blit(self.image, self.rect)
 
 
-class Grass(pygame.sprite.Sprite):
+class Grass(utilities.DrawSprite):
     def __init__(self, pos, width, height):
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = pos
@@ -302,9 +302,9 @@ class Grass(pygame.sprite.Sprite):
         self.image.fill(colors.DARK_GREEN)
 
 
-class Barrier(pygame.sprite.Sprite):
+class Barrier(utilities.DrawSprite):
     def __init__(self, pos, width, height):
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = pos
@@ -312,12 +312,12 @@ class Barrier(pygame.sprite.Sprite):
         self.image.fill(colors.DARK_GRAY)
 
 
-class Checkpoint(pygame.sprite.Sprite):
+class Checkpoint(utilities.DrawSprite):
     POWERUP_SPAWN_INTERVAL = 5  # mean time between powerup spawns
     POWERUP_SPAWN_RADIUS = 20  # max radius to spawn powerups over
 
     def __init__(self, pos, width, height, generatesPowerups=False):
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         # Random Number Generator
         self.rng = np.random.default_rng()

@@ -20,7 +20,7 @@ class Weapon(Enum):
     LASER = 1
 
 
-class Copter(pygame.sprite.Sprite):
+class Copter(utilities.DrawSprite):
     MACHINE_GUN_RELOAD_TIME = 0.5
     BOOSTED_MACHINE_GUN_RELOAD_TIME = 0.3
     DEFAULT_AMMO = np.inf
@@ -32,7 +32,7 @@ class Copter(pygame.sprite.Sprite):
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         self.angle = 0
         self.weapon = self.DEFAULT_WEAPON
@@ -302,7 +302,7 @@ class Copter(pygame.sprite.Sprite):
         return strips
 
 
-class Explosion(pygame.sprite.Sprite):
+class Explosion(utilities.DrawSprite):
     SOUNDFILE = 'bomb.wav'
     SPRITESHEET = 'explosion.png'
     SIZE = (256, 256)
@@ -310,7 +310,7 @@ class Explosion(pygame.sprite.Sprite):
 
     def __init__(self, pos):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         self.sound = utilities.load_sound(self.SOUNDFILE)
 
@@ -341,7 +341,7 @@ class Explosion(pygame.sprite.Sprite):
             self.rect.x -= Wall.SPEED
 
 
-class Wall(pygame.sprite.Sprite):
+class Wall(utilities.DrawSprite):
     WIDTH = 10
     COLOR = colors.DARK_GREEN
     SPEED = 10
@@ -351,7 +351,7 @@ class Wall(pygame.sprite.Sprite):
     # with the order being NW-NE-SE-SW
     def __init__(self, yNW, yNE, ySE, ySW):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         top = min(yNW, yNE)
         bottom = max(ySW, ySE)
@@ -371,11 +371,11 @@ class Wall(pygame.sprite.Sprite):
         self.rect.left -= Wall.SPEED
 
 
-class Projectile(pygame.sprite.Sprite):
+class Projectile(utilities.DrawSprite):
 
     def __init__(self, pos, velocity):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         self.v = velocity
         self.initGraphics(pos)
@@ -469,14 +469,14 @@ class Laser(Projectile):
             return False
 
 
-class Enemy(pygame.sprite.Sprite):
+class Enemy(utilities.DrawSprite):
     AWARD = 0
 
     # Constructor. Pass in the color of the block,
     # and its x and y position
     def __init__(self, y):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
         self.y = y
         self.lives = 1
 
@@ -627,7 +627,7 @@ class Balloon(Enemy):
             pygame.mixer.Sound.play(self.pop_sound)
 
 
-class Powerup(pygame.sprite.Sprite):
+class Powerup(utilities.DrawSprite):
     SIDE_LENGTH = 15  # length of side
     DEFAULT_LOOP_TIME = 2  # time to loop through shades
     DEFAULT_AMMO = np.inf  # default ammo of powerup
@@ -635,7 +635,7 @@ class Powerup(pygame.sprite.Sprite):
 
     def __init__(self, top, type):
         # Call the parent class (Sprite) constructor
-        pygame.sprite.Sprite.__init__(self)
+        utilities.DrawSprite.__init__(self)
 
         info = pygame.display.Info()
         screenWidth = info.current_w

@@ -2,10 +2,26 @@ import pygame
 import os
 from pygame.locals import *
 
+
 # returns a number x if it falls within the bounds [lb, ub]
 # otherwise returns the closest bound
 def bound(lb, x, ub):
     return min(max(lb, x), ub)
+
+
+# returns a number on a ramp with given start and end
+# at progress frac (between 0 and 1)
+def ramp(start, end, frac):
+    frac = bound(0, frac, 1)
+    return start * (1 - frac) + end * frac
+
+
+# returns a number on a seesaw between lb and ub
+# at progress frac (0 = lb, 0.5 = ub, 1 = lb)
+def seesaw(lb, ub, frac):
+    frac = bound(0, frac, 1)
+    f = abs(frac - 0.5) / 0.5
+    return lb * f + ub * (1 - f)
 
 
 def load_image(name, colorkey=None):
@@ -18,7 +34,7 @@ def load_image(name, colorkey=None):
     image = image.convert()
     if colorkey is not None:
         if colorkey is -1:
-            colorkey = image.get_at((0,0))
+            colorkey = image.get_at((0, 0))
         image.set_colorkey(colorkey, RLEACCEL)
     return image
 

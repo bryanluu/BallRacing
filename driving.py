@@ -74,9 +74,9 @@ class Car(utilities.DrawSprite):
         if(self.hasPower()):
             # find the shade of the color using a linear ramp
             color = np.array(self.power.color)
-            color = (1 - 0.3 * (self.power.duration
-                                - self.power.timeLeft)
-                                / self.power.duration) * color
+            t = (self.power.duration - self.power.timeLeft)\
+                / self.power.duration
+            color = utilities.ramp(color, 0.7 * color, t)
             self.power.image.fill(color)
 
             # draw powerup on car
@@ -241,9 +241,9 @@ class Powerup(utilities.DrawSprite):
         self.lastLoop = time.time()
 
     def update(self):
-        t = time.time() - self.lastLoop
+        T = time.time() - self.lastLoop
         color = np.array(self.color)
-        if (t > self.loopTime):
+        if (T > self.loopTime):
             if self.switch:
                 newType = PowerupType(int(self.rng.random() * PowerupType.NUMBER_POWERUPS.value))
                 self.switchTo(newType)
@@ -253,8 +253,9 @@ class Powerup(utilities.DrawSprite):
             self.lastLoop = time.time()
 
         else:
+            t = T / self.loopTime
             # find the shade of the color using a linear seesaw
-            color = (1-0.3*(1-abs(t-self.loopTime/2)/(self.loopTime/2)))*color
+            color = utilities.seesaw(0.7 * color, color, t)
         self.image.fill(color)
 
     # switch powerup type

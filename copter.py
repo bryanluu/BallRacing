@@ -61,7 +61,9 @@ class Copter(utilities.DrawSprite):
         self.setCopterImage()
         self.rect = self.image.get_rect()
         self.rect.center = pos
-        self.surface = pygame.Surface([self.rect.width + 20, self.rect.height + 20], flags=pygame.SRCALPHA)
+        self.surface = pygame.Surface([self.rect.width + 20,
+                                      self.rect.height + 20],
+                                      flags=pygame.SRCALPHA)
         self.surface.fill(colors.TRANSPARENT)
 
     def draw(self, screen):
@@ -83,13 +85,15 @@ class Copter(utilities.DrawSprite):
         self.surface.blit(heartSurf, heartRect)
 
         if self.ammo != np.inf and self.ammo > 0:
-            ammoSurf = self.powerupText.render("{0:>3}".format(self.ammo), False, (0, 0, 0))
+            ammoSurf = self.powerupText.render("{0:>3}".format(self.ammo),
+                                               False, (0, 0, 0))
             ammoRect = ammoSurf.get_rect()
             ammoRect.x, ammoRect.y = 0, 5
             self.surface.blit(ammoSurf, ammoRect)
 
         if self.hasPower(PowerupType.SHIELD):
-            height = 20 * max(self.power.timeLeft, 0) / self.power.startTimeLeft
+            height = 20 * max(self.power.timeLeft, 0)\
+                / self.power.startTimeLeft
             timeSurf = pygame.Surface([5, height])
             timeSurf.fill(colors.GREEN)
             timeRect = timeSurf.get_rect()
@@ -139,7 +143,7 @@ class Copter(utilities.DrawSprite):
                     start = 2
                     end = 1
                     # linear ramp from start to end
-                    frames = round(end + (start - end) * (1 - t))
+                    frames = round(utilities.ramp(start, end, t))
                     self.strips.frames = frames
                 nextImage = self.strips.next()
             else:
@@ -154,11 +158,11 @@ class Copter(utilities.DrawSprite):
             # T is the time since last loop
             T = (time.time() - self.lastPowerupTime)\
                 % self.SHIELD_LOOP_TIME
-            # t goes from 1 to 0 to 1 during a loop time
-            t = abs(T - self.SHIELD_LOOP_TIME / 2)\
-                / (self.SHIELD_LOOP_TIME / 2)
-            # construct linear ramp of alpha values for copter
-            alpha = 255 - (1 - t) * (255 - 100)
+            # t goes from 0 to 1 in a loop
+            t = T / self.SHIELD_LOOP_TIME
+            # construct linear seesaw of alpha values for copter
+            alpha = utilities.seesaw(100, 255, t)
+            print(alpha)
             self.image.set_alpha(alpha)
         else:
             # set opaque
@@ -204,7 +208,9 @@ class Copter(utilities.DrawSprite):
     def shootTowards(self, pos):
         # shoot towards the mouse location
         dr = geo.Vector2D(*pos) - geo.Vector2D(*self.rect.center)
-        self.angle = (np.degrees(geo.Vector2D.angle_between(dr, geo.Vector2D(1, 0))))
+        self.angle = (np.degrees(geo.Vector2D.angle_between(dr,
+                                                            geo.Vector2D(1,
+                                                                         0))))
         return self.shoot()
 
     # checks if the copter has a power if none given, or else the given powertype
@@ -235,7 +241,8 @@ class Copter(utilities.DrawSprite):
             self.lastPowerupTime = time.time()
             self.power.startTimeLeft = self.power.timeLeft
             if self.hasPower(PowerupType.GUN_BOOST):
-                if lastWeapon != Weapon.MACHINE_GUN or lastAmmo == self.DEFAULT_AMMO:
+                if lastWeapon != Weapon.MACHINE_GUN\
+                        or lastAmmo == self.DEFAULT_AMMO:
                     self.ammo = self.power.ammo
                 else:
                     self.ammo = lastAmmo + self.power.ammo
@@ -441,24 +448,26 @@ class Laser(Projectile):
         self.expire = False
 
     def update(self):
-        if self.expire and time.time() - self.shootTime > self.LASER_TIME:
+        if time.time() - self.shootTime > self.LASER_TIME:
             Projectile.kill(self)
 
     def draw(self, screen):
         t = (time.time() - self.shootTime) / self.LASER_TIME
         t = utilities.bound(0, t, 1)
-        thickness = int((1 - t) * 3)
+        thickness = round((1 - t) * 3)
         color = colors.RED
         pygame.draw.line(screen, color, self.rect.topleft,
-                         (geo.Vector2D(*self.pos()) + self.v).tuple(), thickness)
+                         (geo.Vector2D(*self.pos()) + self.v).tuple(),
+                         thickness)
 
     def kill(self):
-        self.expire = True
+        pass
 
     @staticmethod
     def collided(laser, other):
 
-        topline = geo.Vector2D(*other.rect.topleft) - geo.Vector2D(*laser.pos())
+        topline = geo.Vector2D(*other.rect.topleft)\
+            - geo.Vector2D(*laser.pos())
         bottomline = geo.Vector2D(*other.rect.bottomleft)\
             - geo.Vector2D(*laser.pos())
 
@@ -670,13 +679,13 @@ class Powerup(utilities.DrawSprite):
         self.startTimeLeft = self.timeLeft
 
     def update(self):
-        t = time.time() - self.lastLoop
+        T = (time.time() - self.lastLoop)
         color = np.array(self.color)
-        if t > self.DEFAULT_LOOP_TIME:
+        if T > self.DEFAULT_LOOP_TIME:
             self.lastLoop = time.time()
-        else:
-            # find the shade of the color using a linear seesaw
-            color = (1-0.3*(1-abs(t-self.DEFAULT_LOOP_TIME/2)/(self.DEFAULT_LOOP_TIME/2)))*color
+        t = T / self.DEFAULT_LOOP_TIME
+        # find the shade of the color using a linear seesaw
+        color = utilities.seesaw(0.7 * color, color, t)
         self.image.fill(color)
         self.rect.left -= Wall.SPEED
 

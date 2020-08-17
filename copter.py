@@ -162,7 +162,6 @@ class Copter(utilities.DrawSprite):
             t = T / self.SHIELD_LOOP_TIME
             # construct linear seesaw of alpha values for copter
             alpha = utilities.seesaw(100, 255, t)
-            print(alpha)
             self.image.set_alpha(alpha)
         else:
             # set opaque
@@ -296,17 +295,6 @@ class Copter(utilities.DrawSprite):
 
     def drop(self):
         self.flying = False
-
-    def explode(self):
-        pygame.mixer.Sound.play(self.deathSound)
-
-        strips = utilities.SpriteStripAnim('explosion.png',
-                                           (0, 0, 256, 256),
-                                           (8, 7),
-                                           frames=1)
-        strips.iter()
-
-        return strips
 
 
 class Explosion(utilities.DrawSprite):

@@ -780,13 +780,12 @@ class CopterScene(SceneBase):
             pygame.draw.line(self.screen, colors.BLACK, (mouse[0] + offset, mouse[1]), (mouse[0] + length, mouse[1]))
 
     def EndGame(self):
-        if self.score > self.highscore:
-            self.saveScore(self.SAVE_FILE)
+        self.saveScore(self.SAVE_FILE)
         self.SwitchToScene(Start())
 
     def saveScore(self, filename):
         with open(filename, 'w') as f:
-            f.write("High-score,{0:.2f}".format(time.time() - self.starttime))
+            f.write("High-score,{0:.2f}".format(self.highscore))
 
     def loadScore(self, filename):
         try:

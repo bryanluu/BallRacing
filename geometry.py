@@ -153,8 +153,10 @@ class Vector2D:
         Finds the angle of v2 w.r.t to v1.
         :param v1: Reference vector to measure angle to
         :param v2: Vector to measure angle of w.r.t v1
-        :return: Angle between the two vectors, where 0 means they point in the same direction
-        -90 means v2 points to the west of v1, etc. 0 is returned if either is a zero vector.
+        :return: Angle between the two vectors where v1 is the reference axis,
+        0 means they point in the same direction,
+        -pi means v2 points to the east of v1 (north), etc.
+        0 is returned if either is a zero vector.
         """
         if v1 == Vector2D.zero() or v2 == Vector2D.zero():
             return 0
@@ -174,6 +176,21 @@ class Vector2D:
                 return angle if v2_angle <= v1_angle + math.pi else -angle
             else:
                 return -angle
+
+    @staticmethod
+    def reflect(v, axis):
+        """
+        Reflects v across axis
+        :param v: Vector to reflect
+        :param axis: Axis across which to reflect v
+        :return: A new vector which is v reflected across axis
+        """
+        if axis == Vector2D.zero():
+            return v
+
+        angle_to_axis = Vector2D.angle_between(axis, v)
+        new_angle = v.angle() - 2 * angle_to_axis
+        return Vector2D.create_from_angle(new_angle, v.length())
 
     def tuple(self):
         return (self.x, self.y)

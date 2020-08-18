@@ -193,6 +193,11 @@ class CheckExit(SceneBase):
         self.buttons.draw(self.screen)
         pygame.display.flip()
 
+    def SwitchToScene(self, next_scene):
+        super().SwitchToScene(next_scene)
+        if isinstance(next_scene, TestScene):
+            next_scene.starttime = time.time()
+
 
 class Pause(SceneBase):
     def __init__(self, paused):
@@ -258,6 +263,11 @@ class Pause(SceneBase):
 
         self.buttons.draw(self.screen)
         pygame.display.flip()
+
+    def SwitchToScene(self, next_scene):
+        super().SwitchToScene(next_scene)
+        if isinstance(next_scene, TestScene):
+            next_scene.starttime = time.time()
 
 
 class DrivingScene(SceneBase):
@@ -1081,24 +1091,111 @@ class CopterScene(SceneBase):
 
 
 class TestScene(SceneBase):
+    DELAY = 0.1
 
     def __init__(self):
         SceneBase.__init__(self)
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+        self.ball = utilities.load_image('ball.png')
+        self.ball.set_colorkey(colors.WHITE)
+        self.ballrect = self.ball.get_rect()
+        self.v = geo.Vector2D.zero()
+        self.g = geo.Vector2D(0, 1)
+        self.elasticity = 0.8
+        self.friction = 0.1
+
+        size = 20
+        self.obj = pygame.Surface([size, size])
+        self.obj.fill(colors.RED)
+        self.objrect = pygame.Rect(screenWidth / 2,
+                                   screenHeight / 2,
+                                   size, size)
+
+        self.hitLast = False
+
+        self.starttime = time.time()
 
     def initGraphics(self, screen):
         SceneBase.initGraphics(self, screen)
 
     def ProcessInput(self, events, pressed_keys):
-        pass
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                alt_pressed = pressed_keys[pygame.K_LALT] or \
+                              pressed_keys[pygame.K_RALT]
+                if event.key == pygame.K_p:
+                    self.SwitchToScene(Pause(self))
 
     def Update(self):
+        if time.time() - self.starttime < self.DELAY:
+            return
+
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
 
         info = pygame.display.Info()
         screenWidth, screenHeight = info.current_w, info.current_h
 
+        ballmask = pygame.mask.from_surface(self.ball)
+        objmask = pygame.mask.from_surface(self.obj)
+        hit = ballmask.overlap(objmask, (self.objrect.x - self.ballrect.x,
+                                         self.objrect.y - self.ballrect.y))
+        if hit:
+            if not self.hitLast:
+                self.hitLast = True
+                self.lastPos = geo.Vector2D(*mouse)
+                hitpoint = geo.Vector2D(hit[0] + self.ballrect.x,
+                                        hit[1] + self.ballrect.y)
+                ballcenter = geo.Vector2D(*self.ballrect.center)
+                normal = hitpoint - ballcenter
+                self.v = -geo.Vector2D.reflect(self.v * self.elasticity, normal)
+            self.v += self.g
+            self.ballrect.move_ip(*self.v)
+        else:
+            if self.hitLast:
+                self.hitLast = False
+            # follow mouse drag
+            if click[0]:
+                currentPos = geo.Vector2D(*mouse)
+                self.v = currentPos - self.lastPos
+                self.lastPos = currentPos
+                self.ballrect.center = mouse
+                if self.ballrect.left < 0:
+                    self.ballrect.left = 0
+                if self.ballrect.right > screenWidth:
+                    self.ballrect.right = screenWidth
+                if self.ballrect.top < 0:
+                    self.ballrect.top = 0
+                if self.ballrect.bottom > screenHeight:
+                    self.ballrect.bottom = screenHeight
+            else:
+                self.lastPos = geo.Vector2D(*mouse)
+                self.v += self.g
+                self.ballrect.move_ip(*self.v)
+                if self.ballrect.left < 0:
+                    self.v.x = -self.v.x * self.elasticity
+                    self.ballrect.left = 0
+                if self.ballrect.right > screenWidth:
+                    self.v.x = -self.v.x * self.elasticity
+                    self.ballrect.right = screenWidth
+                if self.ballrect.top < 0:
+                    self.v.y = -self.v.y * self.elasticity
+                    self.ballrect.top = 0
+                if self.ballrect.bottom > screenHeight:
+                    self.v.y = int(-self.v.y * self.elasticity)
+                    if self.v.x > 0:
+                        self.v.x = int(self.v.x - self.friction)
+                    elif self.v.x < 0:
+                        self.v.x = int(self.v.x + self.friction)
+
+                    self.ballrect.bottom = screenHeight
+
     def Render(self):
         # For the sake of brevity, the title scene is a blank black screen
         self.screen.fill(colors.WHITE)
+
+        self.screen.blit(self.ball, self.ballrect)
+        self.screen.blit(self.obj, self.objrect)
         pygame.display.flip()

@@ -40,7 +40,7 @@ class Start(SceneBase):
     def __init__(self):
         SceneBase.__init__(self)
 
-        self.options = ['Drive', 'Copter', 'Quit']
+        self.options = ['Drive', 'Copter', 'Test', 'Quit']
         self.buttons = pygame.sprite.Group()
         self.startTime = time.time()
 
@@ -64,7 +64,10 @@ class Start(SceneBase):
             elif i == 1:
                 def action():
                     self.SwitchToScene(CopterScene())
-            else:
+            elif i == 2:
+                def action():
+                    self.SwitchToScene(TestScene())
+            elif i == 3:
                 def action():
                     self.Terminate()
 
@@ -1075,3 +1078,27 @@ class CopterScene(SceneBase):
             or rect.right < 0 \
             or rect.top > screenHeight \
             or rect.bottom < 0
+
+
+class TestScene(SceneBase):
+
+    def __init__(self):
+        SceneBase.__init__(self)
+
+    def initGraphics(self, screen):
+        SceneBase.initGraphics(self, screen)
+
+    def ProcessInput(self, events, pressed_keys):
+        pass
+
+    def Update(self):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+
+        info = pygame.display.Info()
+        screenWidth, screenHeight = info.current_w, info.current_h
+
+    def Render(self):
+        # For the sake of brevity, the title scene is a blank black screen
+        self.screen.fill(colors.WHITE)
+        pygame.display.flip()

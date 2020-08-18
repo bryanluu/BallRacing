@@ -34,7 +34,8 @@ def run_game(width, height, fps, starting_scene):
 
             if quit_attempt:
                 if isinstance(active_scene, DrivingScene)\
-                        or isinstance(active_scene, CopterScene):
+                        or isinstance(active_scene, CopterScene)\
+                        or isinstance(active_scene, TestScene):
                     paused = active_scene
                     active_scene.SwitchToScene(CheckExit(paused))
                 elif isinstance(active_scene, CheckExit):

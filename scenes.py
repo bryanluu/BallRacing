@@ -1112,7 +1112,6 @@ class TestScene(SceneBase):
         self.objrect = pygame.Rect(screenWidth / 2,
                                    screenHeight / 2,
                                    size, size)
-
         self.hitLast = False
 
         self.starttime = time.time()
@@ -1140,22 +1139,22 @@ class TestScene(SceneBase):
 
         ballmask = pygame.mask.from_surface(self.ball)
         objmask = pygame.mask.from_surface(self.obj)
-        hit = ballmask.overlap(objmask, (self.objrect.x - self.ballrect.x,
-                                         self.objrect.y - self.ballrect.y))
+        x = self.objrect.x - self.ballrect.x
+        y = self.objrect.y - self.ballrect.y
+        dx = ballmask.overlap_area(objmask, (x + 1, y))\
+            - ballmask.overlap_area(objmask, (x - 1, y))
+        dy = ballmask.overlap_area(objmask, (x, y + 1))\
+            - ballmask.overlap_area(objmask, (x, y - 1))
+        normal = geo.Vector2D(dx, dy)
+        hit = (normal != geo.Vector2D.zero())
         if hit:
             if not self.hitLast:
                 self.hitLast = True
-                self.lastPos = geo.Vector2D(*mouse)
-                hitpoint = geo.Vector2D(hit[0] + self.ballrect.x,
-                                        hit[1] + self.ballrect.y)
-                ballcenter = geo.Vector2D(*self.ballrect.center)
-                normal = hitpoint - ballcenter
-                self.v = -geo.Vector2D.reflect(self.v * self.elasticity, normal)
-            self.v += self.g
-            self.ballrect.move_ip(*self.v)
+                self.v = -geo.Vector2D.reflect(self.v * self.elasticity, -normal)
+                self.ballrect.move_ip(*self.v)
+
         else:
-            if self.hitLast:
-                self.hitLast = False
+            self.hitLast = False
             # follow mouse drag
             if click[0]:
                 currentPos = geo.Vector2D(*mouse)

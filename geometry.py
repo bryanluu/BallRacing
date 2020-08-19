@@ -84,10 +84,10 @@ class Vector2D:
             raise TypeError("Other must be a scalar")
         return Vector2D(other * self.x, other * self.y)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if not isinstance(other, Number):
             raise TypeError("Other must be a scalar")
-        return Vector2D(self.x.__truediv__(other), self.y.__truediv__(other))
+        return Vector2D(self.x / other, self.y / other)
 
     def __rmul__(self, other):
         if not isinstance(other, Number):

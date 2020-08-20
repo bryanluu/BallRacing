@@ -30,6 +30,11 @@ class Car(utilities.DrawSprite):
     MIN_RANDOM_SPEED = 5
     RANDOM_SPREAD = 3
     TRAIL_LENGTH = 10
+    FWD_ACCELERATION = 0.3
+    FWD_DECCELERATION = 0.2
+    REV_ACCELERATION = 0.5
+    REV_DECCELERATION = 0.5
+    SPEED_TOLERANCE = 0.001
 
     def __init__(self, pos, angle, color, isCPU=False):
         utilities.DrawSprite.__init__(self)
@@ -38,11 +43,11 @@ class Car(utilities.DrawSprite):
         self.rng = np.random.default_rng()
         self.color = color
 
-        self.car_img = utilities.load_image("car.png", -1)
+        self.car_img = utilities.load_image("car.png", None)
         self.car_img = pygame.transform.scale(self.car_img, (30, 15))
         pygame.transform.threshold(self.car_img, self.car_img,
-                                    colors.WHITE, set_color=self.color,
-                                    threshold=(1,1,1,0), inverse_set=True)
+                                   colors.WHITE, set_color=self.color,
+                                   threshold=(1, 1, 1, 0), inverse_set=True)
         self.image = self.car_img.copy()
 
         self.rect = self.image.get_rect()
@@ -90,6 +95,7 @@ class Car(utilities.DrawSprite):
         screen.blit(image, self.rect)
 
     def update(self):
+        self.pos()
         # powerup logic
         if self.powerActive:
             timeSpentActivated = time.time() - self.lastPowerupTime
@@ -157,7 +163,7 @@ class Car(utilities.DrawSprite):
         if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = -1
         else:
-            self.acceleration = 1
+            self.acceleration = self.FWD_ACCELERATION
 
         self.maxSpeed = min(self.MAX_FWD_SPEED, dr.length() / 5)
 
@@ -168,13 +174,15 @@ class Car(utilities.DrawSprite):
         if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = 1
         else:
-            self.acceleration = -1
+            self.acceleration = -self.REV_ACCELERATION
 
         self.maxSpeed = min(self.MAX_REV_SPEED, dr.length() / 5)
 
     def idle(self):
-        if self.speed > 0:
-            self.acceleration = -1
+        if self.speed > self.SPEED_TOLERANCE:
+            self.acceleration = -self.FWD_DECCELERATION
+        elif self.speed < -self.SPEED_TOLERANCE:
+            self.acceleration = self.REV_DECCELERATION
         else:
             self.acceleration = 0
             self.speed = 0

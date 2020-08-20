@@ -195,6 +195,9 @@ class Vector2D:
     def tuple(self):
         return (self.x, self.y)
 
+    def unit_vector(self):
+        return self / self.length()
+
 
 class Vector3D:
 

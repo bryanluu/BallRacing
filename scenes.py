@@ -1150,9 +1150,9 @@ class TestScene(SceneBase):
         if hit:
             if not self.hitLast:
                 self.hitLast = True
-                self.v = -geo.Vector2D.reflect(self.v * self.elasticity, -normal)
+                self.v = -geo.Vector2D.reflect(self.v * self.elasticity,
+                                               -normal)
                 self.ballrect.move_ip(*self.v)
-
         else:
             self.hitLast = False
             # follow mouse drag

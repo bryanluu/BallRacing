@@ -5,6 +5,7 @@ import numpy as np
 from enum import Enum
 import time
 import geometry as geo
+from collections import deque
 
 
 class PowerupType(Enum):
@@ -35,6 +36,7 @@ class Car(utilities.DrawSprite):
     REV_ACCELERATION = 0.5
     REV_DECCELERATION = 0.5
     SPEED_TOLERANCE = 0.001
+    ANGLE_AVERAGING_PERIOD = 10
 
     def __init__(self, pos, angle, color, isCPU=False):
         utilities.DrawSprite.__init__(self)
@@ -55,12 +57,14 @@ class Car(utilities.DrawSprite):
 
         self.isCPU = isCPU  # whether the car is computer controlled
 
-        self.angle = np.radians(angle)
+        self.angle = angle
+        self.angles = deque([geo.Vector2D.create_from_angle(np.radians(-angle),
+                            1)] * self.ANGLE_AVERAGING_PERIOD)
         self.speed = 0
         self.maxSpeed = self.MAX_FWD_SPEED
         self.acceleration = 0
-        self.v = geo.Vector2D.create_from_angle(self.angle,
-                                                self.speed)  # angle in radians
+        self.a = geo.Vector2D.zero()
+        self.v = geo.Vector2D.zero()
 
         self.lastPowerupTime = 0
         self.power = None
@@ -89,9 +93,16 @@ class Car(utilities.DrawSprite):
                                       self.rect.height / 2]
             self.image.blit(self.power.image, self.power.rect)
 
+        if self.speed < 0:
+            angle = np.degrees(-self.v.angle()) + 180
+        elif self.speed > 0:
+            angle = np.degrees(-self.v.angle())
+        else:
+            angle = self.angle
+
         # rotate car using angle in degrees and draw car
         image = pygame.transform.rotate(self.image,
-                                        np.degrees(-self.angle))
+                                        angle)
         screen.blit(image, self.rect)
 
     def update(self):
@@ -149,7 +160,7 @@ class Car(utilities.DrawSprite):
         # driving logic
         self.speed = max(-self.MAX_REV_SPEED,
                          min(self.maxSpeed, self.speed + self.acceleration))
-        self.v = geo.Vector2D.create_from_angle(self.angle,
+        self.v = geo.Vector2D.create_from_angle(-np.radians((self.angle)),
                                                 self.speed)  # angle in radians
         self.rect.move_ip(*self.v)
 
@@ -158,7 +169,8 @@ class Car(utilities.DrawSprite):
 
     def driveTowards(self, dest):
         dr = dest - self.pos()
-        self.angle = dr.angle()  # angle in radians
+
+        self.updateAngle(np.degrees(-dr.angle()))
 
         if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = -1
@@ -169,7 +181,8 @@ class Car(utilities.DrawSprite):
 
     def driveAwayFrom(self, point):
         dr = point - self.pos()
-        self.angle = dr.angle()  # angle in radians
+
+        self.updateAngle(np.degrees(-dr.angle()))
 
         if self.powerActive and self.hasPower(PowerupType.REVERSER):
             self.acceleration = 1
@@ -186,6 +199,14 @@ class Car(utilities.DrawSprite):
         else:
             self.acceleration = 0
             self.speed = 0
+
+        self.updateAngle(self.angle)
+
+    def updateAngle(self, newAngle):
+        self.angles.popleft()
+        v = geo.Vector2D.create_from_angle(np.radians(-newAngle), 1)
+        self.angles.append(v)
+        self.angle = -np.degrees((sum(self.angles, geo.Vector2D.zero()) / len(self.angles)).angle())
 
     # checks if the car has a power if none given, or else the given powertype
     def hasPower(self, type=None):

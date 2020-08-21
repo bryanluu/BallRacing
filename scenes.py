@@ -295,13 +295,13 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         self.cars = utilities.DrawGroup()
-        self.player = driving.Car((10, screenHeight / 2), -90, colors.RED)
+        self.player = driving.Car((10, screenHeight / 2), 90, colors.RED)
         self.cars.add(self.player)
-        cpu = driving.Car((50, screenHeight / 2), -90, colors.BLUE, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.BLUE, isCPU=True)
         self.cars.add(cpu)
-        cpu = driving.Car((50, screenHeight / 2), -90, colors.GREEN, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.GREEN, isCPU=True)
         self.cars.add(cpu)
-        cpu = driving.Car((50, screenHeight / 2), -90, colors.YELLOW, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.YELLOW, isCPU=True)
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 

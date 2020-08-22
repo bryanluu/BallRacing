@@ -295,13 +295,13 @@ class DrivingScene(SceneBase):
         screenWidth, screenHeight = info.current_w, info.current_h
 
         self.cars = utilities.DrawGroup()
-        self.player = driving.Car((10, screenHeight / 2), 90, colors.RED)
+        self.player = driving.Car((10, screenHeight / 2), 90, colors.RED, 'Red (You)')
         self.cars.add(self.player)
-        cpu = driving.Car((50, screenHeight / 2), 90, colors.BLUE, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.BLUE, 'Blue', isCPU=True)
         self.cars.add(cpu)
-        cpu = driving.Car((50, screenHeight / 2), 90, colors.GREEN, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.GREEN, 'Green', isCPU=True)
         self.cars.add(cpu)
-        cpu = driving.Car((50, screenHeight / 2), 90, colors.YELLOW, isCPU=True)
+        cpu = driving.Car((50, screenHeight / 2), 90, colors.YELLOW, 'Yellow', isCPU=True)
         self.cars.add(cpu)
         self.spaceoutCars(0, 0.2 * screenWidth / 2, True)
 
@@ -356,7 +356,9 @@ class DrivingScene(SceneBase):
         def action():
             self.SwitchToScene(Start())
 
-        self.quitButton = Button(buttonRect, action, buttonFont, colors.RED, "Quit", colors.WHITE, colors.BLACK, "Quit", colors.WHITE)
+        self.quitButton = Button(buttonRect, action, buttonFont,
+                                 colors.RED, "Quit", colors.WHITE,
+                                 colors.BLACK, "Quit", colors.WHITE)
 
     def spaceoutCars(self, lb, ub, horizontal=True):
         ncars = len(self.cars)
@@ -405,7 +407,8 @@ class DrivingScene(SceneBase):
             # Powerups collision
             powerupsHit = pygame.sprite.spritecollide(car,
                                                       self.powerups, True,
-                                                      collided=pygame.sprite.collide_rect)
+                                                      collided=pygame
+                                                      .sprite.collide_rect)
             for power in powerupsHit:
                 car.givePower(power)
 
@@ -420,7 +423,8 @@ class DrivingScene(SceneBase):
             else:
                 terrainHit = pygame.sprite.spritecollide(car, self.terrain,
                                                          False,
-                                                         collided=pygame.sprite.collide_rect)
+                                                         collided=pygame
+                                                         .sprite.collide_rect)
 
             car.slowed = False  # by default, Car isn't slowed
             for terrain in terrainHit:
@@ -431,7 +435,7 @@ class DrivingScene(SceneBase):
                 elif type(terrain) is driving.Barrier:
                     self.checkBarrierCollision(car, terrain)
 
-            if car not in self.finished  and car.laps == self.LAP_LIMIT:
+            if car not in self.finished and car.laps == self.LAP_LIMIT:
                 if car == self.player:
                     self.Finish()
 
@@ -453,7 +457,8 @@ class DrivingScene(SceneBase):
         if not self.started:
             timeElapsed = time.time() - self.startTime
             timeLeft = self.START_COUNTDOWN - timeElapsed
-            timeSurf = self.startText.render("Countdown: {0:.0f}".format(np.ceil(timeLeft)),
+            timeSurf = self.startText.render("Countdown: {0:.0f}"
+                                             .format(np.ceil(timeLeft)),
                                              True, colors.WHITE)
             timeRect = timeSurf.get_rect()
             timeRect.center = screenWidth / 2, screenHeight / 2
@@ -461,7 +466,9 @@ class DrivingScene(SceneBase):
         else:
             if self.player not in self.finished:
                 self.timeElapsed = time.time() - self.startTime
-                lapSurf = self.lapText.render("Lap: {0}/{1}".format(self.player.laps, self.LAP_LIMIT),
+                lapSurf = self.lapText.render("Lap: {0}/{1}"
+                                              .format(self.player.laps,
+                                                      self.LAP_LIMIT),
                                               True, colors.WHITE)
                 lapRect = lapSurf.get_rect()
                 lapRect.center = screenWidth / 2, screenHeight / 2
@@ -469,23 +476,38 @@ class DrivingScene(SceneBase):
 
                 self.drawCrossHairs()
             else:
-                timeSurf = self.timeText.render("Best-time: {0:.3f} seconds".format(self.bestTime), True, colors.WHITE)
+                timeSurf = self.timeText.render("Best-time: {0:.3f} seconds"
+                                                .format(self.bestTime),
+                                                True, colors.WHITE)
                 timeRect = timeSurf.get_rect()
                 timeRect.center = screenWidth / 2, screenHeight / 2
                 self.screen.blit(timeSurf, timeRect)
 
-                rank = self.finished.index(self.player) + 1
-                rankSurf = self.rankText.render("Rank: {0}".format(rank), True, colors.WHITE)
-                rankRect = rankSurf.get_rect()
-                rankRect.center = screenWidth / 2, screenHeight / 2 + 50
-                self.screen.blit(rankSurf, rankRect)
-
                 self.screen.blit(self.quitButton.image, self.quitButton.rect)
 
-            timeSurf = self.timeText.render("Time: {0:.3f} seconds".format(self.timeElapsed), True, colors.WHITE)
+            timeSurf = self.timeText.render("Time: {0:.3f} seconds"
+                                            .format(self.timeElapsed),
+                                            True, colors.WHITE)
             timeRect = timeSurf.get_rect()
             timeRect.center = screenWidth / 2, screenHeight / 2 - 50
             self.screen.blit(timeSurf, timeRect)
+
+            if len(self.finished) > 0:
+                ranks = ["{0}: {1}".format(i + 1, car.name)
+                         for (i, car) in enumerate(self.finished)]
+                rankStr = ", ".join(ranks)
+                rankSurf = self.rankText.render(rankStr,
+                                                True, colors.WHITE)
+                fullRanks = ["{0}, {1}".format(i, car.name)
+                             for (i, car) in enumerate(self.cars.sprites())]
+                fullRankStr = ", ".join(fullRanks)
+                fullRankSurf = self.rankText.render(fullRankStr,
+                                                    True, colors.WHITE)
+                fullRankRect = fullRankSurf.get_rect()
+                rankRect = rankSurf.get_rect()
+                rankRect.center = screenWidth / 2, screenHeight / 2 + 50
+                rankRect.left = screenWidth / 2 - fullRankRect.width / 2
+                self.screen.blit(rankSurf, rankRect)
 
         pygame.display.flip()
 

@@ -38,12 +38,13 @@ class Car(utilities.DrawSprite):
     SPEED_TOLERANCE = 0.001
     ANGLE_AVERAGING_PERIOD = 10
 
-    def __init__(self, pos, angle, color, isCPU=False):
+    def __init__(self, pos, angle, color, name, isCPU=False):
         utilities.DrawSprite.__init__(self)
 
         # initialize RNG for randomizer
         self.rng = np.random.default_rng()
         self.color = color
+        self.name = name
 
         self.car_img = utilities.load_image("car.png", None)
         self.car_img = pygame.transform.scale(self.car_img, (30, 15))
